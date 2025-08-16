@@ -1,18 +1,24 @@
 package com.wzz.hslspringboot.webSocketServer;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wzz.hslspringboot.DTO.Result;
 import com.wzz.hslspringboot.modules.ServiceExecutor;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
 import com.wzz.hslspringboot.service.UserSmsWebSocketService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import com.alibaba.fastjson.JSONObject;
+@Component
 public class WsHandler  extends TextWebSocketHandler {
+
+    @Autowired
+    private  ObjectMapper objectMapper;
     @Autowired
     private UserSmsWebSocketService userSmsWebSocketService;
     static Map<String, WebSocketSession> wssessionMap = new ConcurrentHashMap<>();
@@ -25,7 +31,10 @@ public class WsHandler  extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, org.springframework.web.socket.TextMessage message) throws Exception {
         // 收到消息时的处理逻辑
         System.out.println("收到消息: " + message.getPayload());
-        //dto
+        //使用dto解析message.getPayload()
+//        MessageDTO messageDTO = objectMapper.readValue(payload, MessageDTO.class);
+
+//        System.out.println("解析后的 DTO: " + messageDTO);
 
 
 //        JSONObject jsonObject = JSONObject.parseObject(message.getPayload());

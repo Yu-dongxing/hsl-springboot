@@ -15,4 +15,8 @@ public class Msg {
     public String m(String msg){
         return msg+"|收到了";
     }
+
+    public String m(){
+        return "没有参数";
+    }
 }

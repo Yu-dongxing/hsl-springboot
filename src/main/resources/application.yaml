@@ -41,6 +41,10 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
 
+# 三农/中储粮 API 相关配置
+sino-grain:
+  api:
+    base-url: "https://hsn.sinograin.com.cn/slyyServlet/service"
 
 
 sa-token:

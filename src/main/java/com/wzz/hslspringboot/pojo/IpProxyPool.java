@@ -4,10 +4,12 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
 
 /**
  * ip代理池
  */
+@Data
 @TableName("ip_proxy_pool")
 public class IpProxyPool {
     /**
@@ -25,5 +27,27 @@ public class IpProxyPool {
      */
     @TableField("port")
     private String port;
+
+    /**
+     * 认证用户
+     */
+    @TableField("user")
+    private String user;
+    /**
+     * 认证密码
+     */
+    @TableField("password")
+    private String password;
+    /**
+     * 过期时间
+     */
+    @TableField("expiration_time")
+    private Long expirationTime;
+    /**
+     * 使用次数
+     */
+    @TableField("number_of_uses")
+    private Integer numberOfUses;
+
 
 }

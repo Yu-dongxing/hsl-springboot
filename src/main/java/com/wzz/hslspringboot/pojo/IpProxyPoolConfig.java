@@ -29,10 +29,25 @@ public class IpProxyPoolConfig {
     @TableField("url")
     private String url;
     /**
-     * 代理商返回数据解析规则
+     * 返回数据中的端口字段
      */
-    @TableField("type")
-    private String type;
+    @TableField("data_port")
+    private String dataPort;
+    /**
+     * 返回数据中的ip字段
+     */
+    @TableField("data_ip")
+    private String dataIp;
+    /**
+     * 返回数据中的认证用户字段
+     */
+    @TableField("data_user")
+    private String dataUser;
+    /**
+     * 返回数据中的认证用户密码字段
+     */
+    @TableField("data_password")
+    private String dataPassword;
     /**
      * 是否启用（1：启用，0：不使用）
      */

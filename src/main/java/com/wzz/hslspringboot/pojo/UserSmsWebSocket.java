@@ -135,5 +135,15 @@ public class UserSmsWebSocket {
      */
     @TableField("task_status")
     private String taskStatus;
+    /**
+     * 粮食预约日期
+     */
+    @TableField("food_reservation_date")
+    private String foodReservationDate;
 
+    /**
+     * 粮食吨数
+     */
+    @TableField("food_of_grain_num")
+    private String foodOfGrainNum;
 }

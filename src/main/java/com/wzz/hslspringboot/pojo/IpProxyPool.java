@@ -49,5 +49,10 @@ public class IpProxyPool {
     @TableField("number_of_uses")
     private Integer numberOfUses;
 
+    /**
+     * 是否启用https(true:启用，false：不使用)
+     */
+//    @TableField("https")
+//    private Boolean https;
 
 }

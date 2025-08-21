@@ -81,7 +81,7 @@ public class IpProxyTask {
                 // 4.【新增】使用并行流对IP进行有效性验证
                 List<IpProxyPool> validProxies = parsedProxies.parallelStream()
                         .filter(this::isProxyValid)
-                        .collect(Collectors.toList());
+                        .toList();
 
                 // 5. 批量保存验证通过的IP到数据库
                 if (!validProxies.isEmpty()) {

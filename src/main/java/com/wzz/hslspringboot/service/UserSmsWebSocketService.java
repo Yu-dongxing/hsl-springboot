@@ -31,4 +31,6 @@ public interface UserSmsWebSocketService {
     List<UserSmsWebSocket> getAll(String taskStatus);
 
     UserSmsWebSocket selectByDeviceId(String deviceId);
+
+    void updateTaskStatus(Long userId, String status, String details);
 }

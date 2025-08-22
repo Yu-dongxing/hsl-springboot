@@ -152,4 +152,22 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
         // 4. 返回结果
         return userSmsWebSocket;
     }
+    /**
+     * 高效地更新指定ID用户的任务状态和详情。
+     * 这种方式只更新必要的字段，比先查询再更新整个对象性能更好。
+     * @param userId 用户记录的ID
+     * @param status 要更新的任务状态
+     * @param details 状态的详细描述（例如：错误信息）
+     */
+    @Override
+    public void updateTaskStatus(Long userId, String status, String details) {
+        if (userId == null || !StringUtils.hasText(status)) {
+            return; // 基本的参数校验
+        }
+        UserSmsWebSocket updateEntity = new UserSmsWebSocket();
+        updateEntity.setId(userId);
+        updateEntity.setTaskStatus(status);
+        updateEntity.setStatusDetails(details);
+        userSmsWebSocketMapper.updateById(updateEntity);
+    }
 }

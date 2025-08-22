@@ -10,7 +10,6 @@ import java.util.concurrent.Executors;
 public class ThreadPoolConfig {
     /**
      * 定义一个专门用于执行动态任务的虚拟线程池
-     * JDK 21+
      * @return ExecutorService
      */
     @Bean("virtualThreadTaskExecutor")

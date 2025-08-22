@@ -26,16 +26,14 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
 
 
     private static final Logger log = LogManager.getLogger(AppointmentProcessorServiceImpl.class);
+
     @Autowired
     private Function function;
 
-    // EncryptionUtil 是一个工具类，如果它内部没有状态，可以直接new。
-    // 如果它也是一个Spring Bean，则应该使用 @Autowired 注入。这里假设它是一个无状态工具类。
     private final EncryptionUtil encryptionUtil = new EncryptionUtil();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     /**
      * 为单个用户执行完整的预约流程 (包含验证码处理)。
      * 此方法是线程安全的。
      *
@@ -45,7 +43,6 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
     @Override
     public JSONObject processAppointment(UserSmsWebSocket user) {
         if (user == null) {
-
             log.error("传入的用户信息为空，无法处理。");
             return null;
         }
@@ -57,42 +54,43 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         PostPointmentDTO postPointmentDTO = new PostPointmentDTO();
 
         // 2. 获取并设置用户信息
-        if (!populateUserInfo(postPointmentDTO, user, requestHeaderUtil)) {
-            return null;
-        }
+        if (!populateUserInfo(postPointmentDTO, user, requestHeaderUtil)) return null;
 
         // 3. 获取并设置车辆信息
-        if (!populateVehicleInfo(postPointmentDTO, user, requestHeaderUtil)) {
+        if (!populateVehicleInfo(postPointmentDTO, user, requestHeaderUtil)) return null;
+
+        // 4. 搜索粮库信息并设置
+        if (!populateDepotInfo(postPointmentDTO, user, requestHeaderUtil)) return null;
+
+        // 5. 获取随机码并附加到联系方式
+        if (!appendRandomCodeToContact(postPointmentDTO, user, requestHeaderUtil)) return null;
+
+        // 6. 处理图片验证码 (总是执行)
+        if (!handleImageCaptcha(requestHeaderUtil, user)) {
+            log.error("图片验证码处理失败，中断用户 {} 的预约流程。", user.getUserPhone());
+            return null;
+        }
+        log.info("手机号: {} 的图片验证码流程完成。", user.getUserPhone());
+
+        // 7. 按需处理并获取短信验证码
+        String smsCode = getSmsCodeIfNeeded(postPointmentDTO, user, requestHeaderUtil);
+        if (smsCode == null) { // 返回 null 表示在需要短信的情况下，获取失败
+            log.error("短信验证码处理流程失败，中断用户 {} 的预约流程。", user.getUserPhone());
             return null;
         }
 
-        // 4. 处理验证码并获取短信
-//        String smsCode = handleVerificationAndGetSms(user, requestHeaderUtil);
-
-        String smsCode = "";
-
-        if (StrUtil.isBlank(smsCode)) {
-            log.error("获取短信验证码失败，中断用户 {} 的预约流程。", user.getUserPhone());
-            return null;
-        }
-        log.info("成功获取到手机号 {} 的短信验证码。", user.getUserPhone());
-
-        // 5. 搜索粮库信息并设置
-        if (!populateDepotInfo(postPointmentDTO, user, requestHeaderUtil)) {
-            return null;
-        }
-
-        // 6. 设置其他固定的和动态的参数
+        // 8. 设置其他固定的和动态的参数
         setupDefaultParameters(postPointmentDTO, user, smsCode);
 
-        // 7. 加密并提交数据
+        // 9. 加密并提交数据
         try {
             String encryptedData = encryptionUtil.rsa(postPointmentDTO);
             postPointmentDTO.setSecretData(encryptedData);
 
             log.info("最终提交的DTO (手机号: {}): {}", user.getUserPhone(), objectMapper.writeValueAsString(postPointmentDTO));
 
-            JSONObject result = function.postInfo(requestHeaderUtil, postPointmentDTO);
+//            JSONObject result = function.postInfo(requestHeaderUtil, postPointmentDTO);
+            JSONObject result = null;
             log.info("手机号: {} 的预约提交结果: {}", user.getUserPhone(), result);
             return result;
 
@@ -106,49 +104,91 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
     }
 
 
-
     /**
      * [占位符方法] 识别图片验证码
-     * 你需要在此处实现对接第三方打码平台API的逻辑
-     *
-     * @param imageBase64 图片的Base64编码字符串
-     * @return 识别出的验证码字符串
      */
     private String solveCaptcha(String imageBase64) {
-        // ====================== 真实逻辑替换区域 ======================
-        // 1. 构建请求体，将 imageBase64 发送到打码平台API
-        // 2. 轮询或等待打码平台返回识别结果
-        // 3. 返回识别结果字符串
-        // 示例: return DamatuApi.solve(imageBase64);
-        // ===========================================================
-
-        // 当前为模拟返回，用于流程测试
         log.warn("注意：当前正在使用模拟的图片验证码识别！");
-        return "8888"; // 假设识别结果总是 "8888"
+        return "9"; // 假设识别结果总是 "9"
     }
 
     /**
      * [占位符方法] 获取短信验证码
-     * 你需要在此处实现对接接码平台、Redis或数据库的逻辑
-     *
-     * @param phone 接收短信的手机号
-     * @return 最新的短信验证码
      */
     private String retrieveSmsCode(String phone) {
-        // ====================== 真实逻辑替换区域 ======================
-        // 1. 调用接码平台API，根据手机号获取最新一条短信
-        // 2. 从短信内容中用正则表达式提取出6位数字验证码
-        // 3. 返回验证码
-        // 示例: return SmsReceiverApi.getLatestCode(phone);
-
-        // 或者从 Redis 中读取
-        // 示例: return redisTemplate.opsForValue().get("sms_code:" + phone);
-        // ===========================================================
-
-        // 当前为模拟返回，用于流程测试
         log.warn("注意：当前正在使用模拟的短信验证码获取！");
         return "260287"; // 假设获取到的验证码总是 "260287"
     }
+
+    /**
+     * 封装图片验证码的完整处理流程（获取、识别、验证）。
+     * @return boolean true表示成功, false表示失败
+     */
+    private boolean handleImageCaptcha(RequestHeaderUtil headers, UserSmsWebSocket user) {
+        // 1. 获取图片验证码
+        String photoCatchResponse = function.getPhotoCatch(headers);
+        // 假设图片base64在 "data" -> "imageBase64" 字段中，请根据实际情况修改
+        String imageBase64 = photoCatchResponse;
+        log.info("获取图片验证码成功, 手机号: {}", user.getUserPhone());
+
+        // 2. 调用打码平台识别图片验证码
+        String captchaCode = solveCaptcha(imageBase64);
+        if (StrUtil.isBlank(captchaCode)) {
+            log.error("图片验证码识别失败 (结果为空), 手机号: {}", user.getUserPhone());
+            return false;
+        }
+        log.info("图片验证码识别结果: {}", captchaCode);
+
+        // 3. 验证图片验证码
+        JSONObject checkPhotoResponse = function.checkPhoteCatch(captchaCode, headers);
+        // 假设成功的响应中包含 success:true
+        if (checkPhotoResponse == null || !checkPhotoResponse.getBooleanValue("success")) {
+            log.error("验证图片验证码失败, 手机号: {}, 响应: {}", user.getUserPhone(), checkPhotoResponse);
+            return false;
+        }
+        log.info("图片验证码校验成功, 手机号: {}", user.getUserPhone());
+        return true;
+    }
+
+    /**
+     * 检查是否需要短信，如果需要则完成发送和获取的流程。
+     * @return 返回短信验证码。如果不需要短信，则返回空字符串""。如果流程出错，则返回null。
+     */
+    private String getSmsCodeIfNeeded(PostPointmentDTO dto, UserSmsWebSocket user, RequestHeaderUtil headers) {
+        // 1. 检查是否需要短信验证码
+        JSONObject smsBoolesResponse = function.getSmsBooles(dto, headers);
+        if (smsBoolesResponse == null || smsBoolesResponse.getJSONObject("data") == null) {
+            log.error("检查是否需要短信验证码的请求失败, 手机号: {}, 响应: {}", user.getUserPhone(), smsBoolesResponse);
+            return null;
+        }
+        boolean needsSms = smsBoolesResponse.getJSONObject("data").getBooleanValue("needsms");
+        log.info("用户 {} 是否需要短信验证码: {}", user.getUserPhone(), needsSms);
+
+        if (!needsSms) {
+            return ""; // 不需要短信，直接返回空字符串
+        }
+
+        // --- 以下是需要短信验证的流程 ---
+
+        // 2. 发送手机验证码
+        JSONObject sendSmsResponse = function.sendSmsCode(dto, headers, user);
+        if (sendSmsResponse == null || !sendSmsResponse.getBooleanValue("success")) {
+            log.error("发送手机验证码失败, 手机号: {}, 响应: {}", user.getUserPhone(), sendSmsResponse);
+            return null;
+        }
+        log.info("发送手机验证码请求成功, 手机号: {}", user.getUserPhone());
+
+        // 3. 从接码平台或缓存中获取短信验证码
+        String smsCode = retrieveSmsCode(user.getUserPhone());
+        if (StrUtil.isBlank(smsCode)) {
+            log.error("从外部平台获取短信验证码失败(结果为空), 手机号: {}", user.getUserPhone());
+            return null;
+        }
+        log.info("成功获取到手机号 {} 的短信验证码。", user.getUserPhone());
+
+        return smsCode;
+    }
+
 
     /**
      * 填充用户信息到DTO
@@ -176,7 +216,6 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         dto.setJsr(user.getUserName());
         dto.setSfz(user.getUserIdCard());
 
-        // 处理 mobileDeviceId
         String mobileDeviceIdStr = headers.getMobileDeviceId();
         if (!StrUtil.hasBlank(mobileDeviceIdStr)) {
             String mobileDeviceId = StrUtil.split(mobileDeviceIdStr, '=').get(1);
@@ -191,7 +230,10 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
      */
     private boolean populateVehicleInfo(PostPointmentDTO dto, UserSmsWebSocket user, RequestHeaderUtil headers) {
         JSONObject response = function.getLicensePlateId(headers, user);
-
+        if (response == null || !response.containsKey("data")) {
+            log.error("获取车辆信息失败, 手机号: {}, 响应: {}", user.getUserPhone(), response);
+            return false;
+        }
 
         JSONArray dataArray = response.getJSONArray("data");
         if (dataArray == null || dataArray.isEmpty()) {
@@ -219,7 +261,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
      */
     private boolean populateDepotInfo(PostPointmentDTO dto, UserSmsWebSocket user, RequestHeaderUtil headers) {
         JSONObject response = function.search(user, headers);
-        if (response == null || !"200".equals(response.getString("code"))) {
+        if (response == null || !"1".equals(response.getString("retCode"))) {
             log.error("搜索粮库信息失败, 手机号: {}, 响应: {}", user.getUserPhone(), response);
             return false;
         }
@@ -230,7 +272,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
             return false;
         }
 
-        JSONObject data = dataArray.getJSONObject(0); // 假设总是取第一个
+        JSONObject data = dataArray.getJSONObject(0);
         JSONArray yypzmxList = data.getJSONArray("yypzmxList");
         if (yypzmxList == null || yypzmxList.isEmpty()) {
             log.error("粮库预约配置列表为空, 手机号: {}", user.getUserPhone());
@@ -249,7 +291,6 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         dto.setJssj(firstTimeSlot.getString("jssj"));
         dto.setPzmxnm(firstTimeSlot.getString("yypzmxnm"));
 
-        // 解析并匹配粮食品种
         JSONArray lspzArray = JSON.parseArray(data.getString("lspz"));
         boolean grainMatched = false;
         if (lspzArray != null) {
@@ -272,6 +313,23 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
     }
 
     /**
+     * 获取随机码并附加到联系方式字段
+     */
+    private boolean appendRandomCodeToContact(PostPointmentDTO dto, UserSmsWebSocket user, RequestHeaderUtil headers) {
+        JSONObject response = function.getRandomcode(user, headers);
+        if (response == null || response.getJSONObject("data") == null) {
+            log.error("获取随机码失败, 手机号: {}, 响应: {}", user.getUserPhone(), response);
+            return false;
+        }
+        String randomCode = response.getJSONObject("data").getString("randomCode");
+        log.info("成功获取到 randomCode: {}", randomCode);
+
+        dto.setLxfs(dto.getLxfs() + "_" + randomCode);
+        return true;
+    }
+
+
+    /**
      * 设置其余默认或动态参数
      */
     private void setupDefaultParameters(PostPointmentDTO dto, UserSmsWebSocket user, String smsCode) {
@@ -289,9 +347,9 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         dto.setYyfsnm("1");
         dto.setYyfsmc("预约挂号");
         dto.setDevicetype("weixin");
-        dto.setUuid("01a7baa260d04c8c85bd3b2488187767"); // 这个UUID可能是固定的，如果不是，也需要动态传入
+        dto.setUuid("01a7baa260d04c8c85bd3b2488187767");
         dto.setZldd("");
         dto.setCyrsjh("");
-        dto.setDxyzm(smsCode); // 使用传入的短信验证码
+        dto.setDxyzm(smsCode);
     }
 }

@@ -1,8 +1,10 @@
 package com.wzz.hslspringboot.apis;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.crypto.digest.DigestUtil;
-import cn.hutool.http.HttpUtil;
+import cn.hutool.http.HttpRequest;
+import cn.hutool.http.HttpResponse;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONException;
 import com.alibaba.fastjson.JSONObject;
 import com.wzz.hslspringboot.DTO.PostPointmentDTO;
 import com.wzz.hslspringboot.DTO.SearchResvKdListDTO;
@@ -74,16 +76,17 @@ public class Modules {
      * 获取图片验证码
      * GET /slyyServlet/service/nhyy/captchaMath
      * Postman 接口名: "获取图片验证码"
-     * @param timestamp 时间戳, 对应 Postman 中的 t
+     *
+     * @param timestamp         时间戳, 对应 Postman 中的 t
      * @param requestHeaderUtil 请求头工具
      * @return JSONObject
      */
-    public JSONObject getCaptchaImage(String timestamp, RequestHeaderUtil requestHeaderUtil) {
+    public byte[] getCaptchaImage(String timestamp, RequestHeaderUtil requestHeaderUtil) {
         Map<String, Object> params = new HashMap<>();
         params.put("option", "image");
         params.put("t", timestamp);
         // 对于 GET 请求，参数应该由 util 内部处理拼接到 URL 后
-        return util.get("/slyyServlet/service/nhyy/captchaMath", requestHeaderUtil, params);
+        return util.getCaptchaImage("/slyyServlet/service/nhyy/captchaMath", requestHeaderUtil, params);
     }
 
     /**
@@ -105,17 +108,16 @@ public class Modules {
      * 发送手机短信验证码
      * POST /slyyServlet/service/smscheck/sendSMSCode
      * Postman 接口名: "发送手机号验证码"
-     * @param zznm 组织内码 (根据接口推断)
-     * @param uuid UUID
      * @param userSmsWebSocket 包含用户手机号
      * @param requestHeaderUtil 请求头工具
      * @return JSONObject
      */
-    public JSONObject sendSMSCode(String zznm, String uuid, UserSmsWebSocket userSmsWebSocket, RequestHeaderUtil requestHeaderUtil) {
+    public JSONObject sendSMSCode(PostPointmentDTO yy,UserSmsWebSocket userSmsWebSocket, RequestHeaderUtil requestHeaderUtil) {
         Map<String, Object> params = new HashMap<>();
         params.put("phoneNum", userSmsWebSocket.getUserPhone());
-        params.put("zznm", zznm);
-        params.put("uuid", uuid);
+        params.put("zznm", yy.getZznm());
+        params.put("uuid", yy.getUuid());
+        params.put("pzmxnm",yy.getPzmxnm());
         params.put("devicetype", "weixin");
         return util.postForm("/slyyServlet/service/smscheck/sendSMSCode", requestHeaderUtil, params);
     }
@@ -134,23 +136,21 @@ public class Modules {
     }
 
     /**
-     * 获取粮库可选表单 查询此粮库是否需要验证码
+     * 查询此粮库是否需要验证码
      * POST /slyyServlet/service/nhyy/getResvMxList
      * Postman 接口名: "获取粮库可选表单"
-     * @param zznm 组织内码
-     * @param yypzmxnm 预约配置明细内码
-     * @param ywlx 业务类型
-     * @param yyfsnm 预约方式内码
+     * @param zznm 组织id
+     * @param yypzmxnm 预约配置明细id
      * @param requestHeaderUtil 请求头工具
      * @return JSONObject
      */
-    public JSONObject getResvMxList(String zznm, String yypzmxnm, String ywlx, String yyfsnm, RequestHeaderUtil requestHeaderUtil) {
+    public JSONObject getResvMxList(String zznm, String yypzmxnm, RequestHeaderUtil requestHeaderUtil) {
         Map<String, Object> params = new HashMap<>();
         params.put("devicetype", "weixin");
         params.put("zznm", zznm);
         params.put("yypzmxnm", yypzmxnm);
-        params.put("ywlx", ywlx);
-        params.put("yyfsnm", yyfsnm);
+        params.put("ywlx", "0");
+        params.put("yyfsnm", "1");
         return util.postForm("/slyyServlet/service/nhyy/getResvMxList", requestHeaderUtil, params);
     }
 
@@ -184,6 +184,8 @@ public class Modules {
         return util.postForm("/slyyServlet/j_bsp_security_check/mobile", requestHeaderUtil, params);
     }
 
+
+
     /**
      * 检验密码 (登录校验)
      * POST /slyyServlet/j_bsp_security_check
@@ -200,5 +202,51 @@ public class Modules {
                 userSmsWebSocket.getUserPhone(), p);
         // Postman 中此请求的 body 为 null (Content-Length: 0)
         return util.postForm(url, requestHeaderUtil, null);
+    }
+    /**
+     * 图片验证码识别
+     * @param imgBase64 图片的Base64编码字符串
+     * @return 包含识别结果或错误信息的JSONObject
+     */
+    public JSONObject photeCodeOcr(String imgBase64) {
+        // 定义OCR服务的URL
+        String ocrServiceUrl = "http://127.0.0.1:8000/ocr";
+
+        try {
+            // 使用Hutool的HttpRequest发起POST请求
+            // 链式调用，设置请求URL、表单参数和超时时间
+            HttpResponse response = HttpRequest.post(ocrServiceUrl)
+                    .form("image", imgBase64) // 设置表单参数，"image"为字段名，imgBase64为对应的值
+                    .timeout(1000) // 设置超时时间，单位为毫秒，这里设置为20秒. [3]
+                    .execute(); // 执行请求
+
+            // 判断请求是否成功
+            if (response.isOk()) {
+                // 获取响应体
+                String resultBody = response.body();
+                // 将响应的JSON字符串解析为JSONObject
+                return JSON.parseObject(resultBody);
+            } else {
+                // 如果请求失败，构建一个包含错误信息的JSONObject
+                JSONObject errorResult = new JSONObject();
+                errorResult.put("error_code", response.getStatus());
+                errorResult.put("error_msg", "OCR service request failed with status: " + response.getStatus());
+                return errorResult;
+            }
+        } catch (JSONException e) {
+            // JSON解析异常处理
+            JSONObject errorResult = new JSONObject();
+            errorResult.put("error_code", 500);
+            errorResult.put("error_msg", "Failed to parse response from OCR service.");
+            // 可以在这里添加日志记录 e.printStackTrace();
+            return errorResult;
+        } catch (Exception e) {
+            // 其他异常处理，例如网络连接异常
+            JSONObject errorResult = new JSONObject();
+            errorResult.put("error_code", 500);
+            errorResult.put("error_msg", "An unexpected error occurred: " + e.getMessage());
+            // 可以在这里添加日志记录 e.printStackTrace();
+            return errorResult;
+        }
     }
 }

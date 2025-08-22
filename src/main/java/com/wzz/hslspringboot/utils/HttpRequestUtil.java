@@ -31,6 +31,63 @@ public class HttpRequestUtil {
         System.setProperty("jdk.http.auth.tunneling.disabledSchemes", "false");
     }
 
+
+    /**
+     * 发送GET请求以获取图片验证码等二进制数据
+     * 此方法不使用 executeRequest，因为它专门设计用于直接返回响应体的原始字节数组，
+     * 适用于图片、文件下载等场景。
+     *
+     * @param urlPath   请求的相对路径 (e.g., /slyyServlet/service/...)
+     * @param headers   请求头对象
+     * @param params    URL参数
+     * @return 响应体的字节数组 (byte[])，如果请求失败或响应为空则返回 null
+     */
+    public byte[] getCaptchaImage(String urlPath, RequestHeaderUtil headers, Map<String, Object> params) {
+        String fullUrl = baseUrl + urlPath;
+        HttpRequest request = HttpRequest.get(fullUrl);
+
+        if (MapUtil.isNotEmpty(params)) {
+            request.form(params);
+        }
+
+        // 应用请求头
+        if (headers != null && headers.getHeader() != null) {
+            request.addHeaders(headers.getHeader());
+        }
+
+        // 设置超时
+        request.setConnectionTimeout(3000); // 连接超时
+        request.setReadTimeout(5000);       // 读取超时
+
+        HttpResponse response = null;
+        try {
+            log.info("请求图片验证码 to URL: [{}], Method: [{}]", request.getUrl(), request.getMethod());
+            response = request.execute();
+
+            if (response.isOk()) {
+                // 关键：验证码请求通常会设置session，所以必须处理Cookie
+                headers.setCookie(response);
+                set(headers);
+
+                // 核心区别：使用 bodyBytes() 直接获取原始字节数据
+                byte[] imageBytes = response.bodyBytes();
+                log.info("成功获取图片 to [{}], HTTP 状态码: {}, Response Body Length: {}", request.getUrl(), response.getStatus(), imageBytes.length);
+                return imageBytes;
+            } else {
+                log.error("获取图片失败 to [{}], HTTP Status: {}, Body: {}", request.getUrl(), response.getStatus(), response.body());
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("获取图片网络异常 to [{}]: {}", request.getUrl(), e.getMessage(), e);
+            return null;
+        } finally {
+            log.info("图片请求结束.");
+            if (response != null) {
+                response.close();
+            }
+        }
+    }
+
     /**
      * 发送GET请求
      * @param urlPath   请求的相对路径 (e.g., /slyyServlet/service/...)

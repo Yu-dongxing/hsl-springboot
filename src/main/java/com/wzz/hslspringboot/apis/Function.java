@@ -10,6 +10,8 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.Base64;
+
 @Component
 public class Function {
     private static final Logger log = LogManager.getLogger(Function.class);
@@ -125,5 +127,164 @@ public class Function {
         }
         return null;
     }
+    /**
+     * 获取是否需要短信验证码
+     */
+    public JSONObject getSmsBooles(PostPointmentDTO p,RequestHeaderUtil header){
+        JSONObject re = api.getResvMxList(p.getZznm(),p.getPzmxnm(),header);
+        if (re != null && re.getInteger("status") == 200){
+            return re;
+        }
+        return null;
+    }
+    /**
+     * 获取图片验证码
+     */
+    public String getPhotoCatch(RequestHeaderUtil header){
+        String t = String.valueOf(System.currentTimeMillis());
+        byte[] re = api.getCaptchaImage(t,header);
+        if (re != null && re.length > 0) {
+            String base64Image = Base64.getEncoder().encodeToString(re);
+            log.info("成功获取并编码图片验证码, Base64长度: {}", base64Image.length());
 
+            // 3. (推荐) 拼接成Data URI Scheme，方便前端直接在img标签中使用
+            return "data:image/png;base64," + base64Image;
+        } else {
+            log.error("调用getCaptchaImage方法失败，返回为空。");
+            return null;
+        }
+    }
+    /**
+     * 识别图片验证码
+     */
+    public String photoCodeOcr(RequestHeaderUtil requestHeaderUtil){
+        for (int i = 0; i < 10; i++) {
+            try {
+                String imgBase =getPhotoCatch(requestHeaderUtil);
+                JSONObject re = api.photeCodeOcr(imgBase);
+                log.info("<UNK>, <UNK>: {}", re.toString());
+                String as = String.valueOf(calculateManually(re.getString("data")));
+                return as;
+            }catch (Exception e){
+                log.error("<UNK>", e);
+            }
+        }
+        return null;
+    }
+
+    public String getUUID(RequestHeaderUtil requestHeaderUtil){
+        for (int i = 0; i < 10; i++) {
+            String as = photoCodeOcr(requestHeaderUtil);
+            if(as==null){
+
+            }
+            log.info("获取图片验证码-{}",as);
+            JSONObject g = checkPhoteCatch(as,requestHeaderUtil);
+            log.info("<UNK>-{}",g);
+            if (g != null && g.getJSONObject("data").getInteger("retCode")==1) {
+                String uuid=g.getJSONObject("data").getString("uuid");
+                return uuid;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 获取图片验证码
+     *  发送手机验证码
+     */
+    public JSONObject checkData(PostPointmentDTO postPointmentDTO,RequestHeaderUtil requestHeaderUtil,UserSmsWebSocket u){
+        JSONObject aaa = getSmsBooles(postPointmentDTO,requestHeaderUtil);
+        JSONObject dataObject = aaa.getJSONObject("data");
+        Boolean needsms = dataObject.getBoolean("needsms");
+        JSONObject reJson=new JSONObject();
+        // 打印结果
+        log.info("成功解析到 'needsms' 的值为: {}", needsms);
+        for (int i = 0; i < 10; i++) {
+            String uuid= getUUID(requestHeaderUtil);
+            postPointmentDTO.setUuid(uuid);
+            if (uuid!=null){
+                if(needsms){
+                    JSONObject re = sendSmsCode(postPointmentDTO,requestHeaderUtil,u);
+                    if (re!=null&&re.getJSONObject("data").getInteger("resultCode")==1){
+                        reJson.put("needsms",needsms);
+                        reJson.put("status",200);
+                        return reJson;
+                    }
+                }
+                reJson.put("needsms",needsms);
+                reJson.put("status",200);
+                return reJson;
+            }
+        }
+        reJson.put("needsms",needsms);
+        reJson.put("status",500);
+        return reJson;
+    }
+
+    public int calculateManually(String expression) {
+
+        String cleanExpr = expression.replaceAll("[=?\\s]", ""); // 得到 "5+4"
+
+        String operator = "";
+        if (cleanExpr.contains("+")) {
+            operator = "\\+";
+        } else if (cleanExpr.contains("-")) {
+            operator = "-";
+        } else if (cleanExpr.contains("x")) {
+            operator = "x";
+        } else {
+            throw new IllegalArgumentException("不支持的运算符: " + cleanExpr);
+        }
+
+        String[] parts = cleanExpr.split(operator);
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("无效的表达式格式: " + cleanExpr);
+        }
+
+        int num1 = Integer.parseInt(parts[0]);
+        int num2 = Integer.parseInt(parts[1]);
+
+        switch (operator) {
+            case "\\+":
+                return num1 + num2;
+            case "-":
+                return num1 - num2;
+            case "x":
+                return num1 * num2;
+            default:
+                // 不会执行到这里
+                throw new IllegalStateException("代码逻辑错误");
+        }
+    }
+
+
+    /**
+     * 验证图片验证码
+     */
+    public JSONObject checkPhoteCatch(String code,RequestHeaderUtil header){
+        JSONObject re = api.checkCaptchaCode(code,header);
+        if (re != null && re.getInteger("status") == 200){
+            return re;
+        }
+        return null;
+    }
+    /**
+     * 发送手机短信验证码
+     */
+    public JSONObject sendSmsCode(PostPointmentDTO p,RequestHeaderUtil header,UserSmsWebSocket user){
+        JSONObject re = api.sendSMSCode(p,user,header);
+        if (re != null && re.getInteger("status") == 200){
+            return re;
+        }
+        return null;
+    }
+
+    public JSONObject getRandomcode(UserSmsWebSocket user, RequestHeaderUtil header) {
+        JSONObject re = api.getRandomcode(user, header);
+        if (re != null && re.getInteger("status") == 200){
+            return re;
+        }
+        return null;
+    }
 }

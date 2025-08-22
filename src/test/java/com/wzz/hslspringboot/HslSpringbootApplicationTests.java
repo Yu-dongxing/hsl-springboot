@@ -42,7 +42,7 @@ class HslSpringbootApplicationTests {
     private UserSmsWebSocketService userSmsWebSocketService;
 
     @Test
-    void contextLoads() {
+    void contextLoads() throws InterruptedException {
 
 
         /**
@@ -198,17 +198,26 @@ class HslSpringbootApplicationTests {
         postPointmentDTO.setYyfsnm("1");
         postPointmentDTO.setYyfsmc("预约挂号");
         postPointmentDTO.setDevicetype("weixin");
-        postPointmentDTO.setUuid("01a7baa260d04c8c85bd3b2488187767");
         postPointmentDTO.setZldd("");
         postPointmentDTO.setCyrsjh("");
+
         /**
-         * 短信验证码
+         * 获取随机数
          */
-        postPointmentDTO.setDxyzm("260287");
+        JSONObject o =function.getRandomcode(u,requestHeaderUtil);
+        log.info("获取随机数 :{}",o);
+        JSONObject dataJson = o.getJSONObject("data");
+        String randomCode = dataJson.getString("randomCode");
+        log.info("成功解析到 randomCode: {}", randomCode);
+        postPointmentDTO.setLxfs(u.getUserPhone()+"_"+randomCode);
 
 
-
-
+        /**
+         * 获取是否需要短信验证码
+         * 获取图片验证码
+         * 发送手机验证码
+         */
+        JSONObject checkRe= function.checkData(postPointmentDTO,requestHeaderUtil,u);
 
         String e = encryptionUtil.rsa(postPointmentDTO);
         postPointmentDTO.setSecretData(e);
@@ -224,7 +233,7 @@ class HslSpringbootApplicationTests {
 
 
 
-//        log.info("提交：{}",function.postInfo(requestHeaderUtil,postPointmentDTO));
+        log.info("提交：{}",function.postInfo(requestHeaderUtil,postPointmentDTO));
 
     }
 
@@ -233,5 +242,10 @@ class HslSpringbootApplicationTests {
         UserSmsWebSocket u = userSmsWebSocketService.ByUserPhoneSelect("13170151816");
         appointmentProcessorService.processAppointment(u);
     }
+
+    /**
+     * 封装（）
+     */
+
 
 }

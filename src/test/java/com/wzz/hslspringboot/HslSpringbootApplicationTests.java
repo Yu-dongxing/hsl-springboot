@@ -79,9 +79,10 @@ class HslSpringbootApplicationTests {
                 userType = userObject.getString("userType");
                 postPointmentDTO.setTjr(userNm);
                 postPointmentDTO.setUserType(userType);
-                postPointmentDTO.setCs(u.getFoodOfGrainNum());
+                postPointmentDTO.setCs(String.valueOf(u.getNumberOfVehiclesAndShips()));
                 postPointmentDTO.setCyr(u.getUserName());
                 postPointmentDTO.setJsr(u.getUserName());
+                postPointmentDTO.setDxyzm("");
 
                 postPointmentDTO.setSfz(u.getUserIdCard());
                 String mobileDeviceIdStr = "";

@@ -134,10 +134,11 @@ public class HttpRequestUtil {
     public JSONObject postJson(String urlPath, RequestHeaderUtil headers, String jsonBody) {
         String fullUrl = baseUrl + urlPath;
         HttpRequest request = HttpRequest.post(fullUrl);
-        if (StrUtil.isNotBlank(jsonBody)) {
-            request.body(jsonBody);
-            // Hutool 会自动设置 Content-Type 为 application/json
-        }
+//        if (StrUtil.isNotBlank(jsonBody)) {
+//            request.body(jsonBody);
+//            // Hutool 会自动设置 Content-Type 为 application/json
+//        }
+        request.body(jsonBody);
         log.info("发送POST JSON请求: [{}]", request.toString());
         return executeRequest(request, headers);
     }
@@ -175,6 +176,8 @@ public class HttpRequestUtil {
         if (headers != null && headers.getHeader() != null) {
             request.addHeaders(headers.getHeader());
         }
+        log.info("<UNK> <UNK>: [{}]", headers.toString());
+
         // --- 修改：在执行前设置超时 ---
         request.setConnectionTimeout(2000); // 设置连接超时
         request.setReadTimeout(2000);       // 设置读取超

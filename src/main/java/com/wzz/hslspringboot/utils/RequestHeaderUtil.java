@@ -69,6 +69,7 @@ public class RequestHeaderUtil {
         Map<String, String> map = new HashMap<>();
         map.put("Sec-Fetch-Site", "same-origin");
         map.put("Accept-Language","zh-CN,zh-Hans;q=0.9");
+        map.put("Accept","*/*");
         map.put("Sec-Fetch-Mode", "cors");
         map.put("Content-Type", "application/x-www-form-urlencoded");
         map.put("Origin","https://hsn.sinograin.com.cn");

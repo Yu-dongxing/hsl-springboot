@@ -2,6 +2,8 @@ package com.wzz.hslspringboot.apis;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.wzz.hslspringboot.Captcha.Captcha;
+import com.wzz.hslspringboot.Captcha.CaptchaData;
 import com.wzz.hslspringboot.DTO.PostPointmentDTO;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
 import com.wzz.hslspringboot.utils.RequestHeaderUtil;
@@ -10,7 +12,9 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.util.Base64;
+import java.util.Map;
 
 @Component
 public class Function {
@@ -172,20 +176,19 @@ public class Function {
         return null;
     }
 
-    public String getUUID(RequestHeaderUtil requestHeaderUtil){
-        for (int i = 0; i < 10; i++) {
-            String as = photoCodeOcr(requestHeaderUtil);
-            if(as==null){
-
-            }
-            log.info("获取图片验证码-{}",as);
-            JSONObject g = checkPhoteCatch(as,requestHeaderUtil);
-            log.info("<UNK>-{}",g);
-            if (g != null && g.getJSONObject("data").getInteger("retCode")==1) {
-                String uuid=g.getJSONObject("data").getString("uuid");
-                return uuid;
-            }
+    public String getUUID(RequestHeaderUtil requestHeaderUtil) throws IOException {
+        JSONObject rrrr  = getCaptcha(requestHeaderUtil);
+        log.info("<获取图片或滑动验证码::::::>:{}",rrrr);
+        CaptchaData ew  = new CaptchaData(rrrr);
+        new Captcha(ew);
+        if(ew.getStatus() == 200){
+            JSONObject qqqq = ew.getJson();
+            log.info("<获取图片或滑动验证码>:{}",qqqq);
+            JSONObject sa = checkCaptcha(requestHeaderUtil,qqqq);
+            log.info("<<UNK>::::::>:{}",sa.toString());
         }
+
+
         return null;
     }
 
@@ -193,7 +196,7 @@ public class Function {
      * 获取图片验证码
      *  发送手机验证码
      */
-    public JSONObject checkData(PostPointmentDTO postPointmentDTO,RequestHeaderUtil requestHeaderUtil,UserSmsWebSocket u){
+    public JSONObject checkData(PostPointmentDTO postPointmentDTO,RequestHeaderUtil requestHeaderUtil,UserSmsWebSocket u) throws IOException {
         JSONObject aaa = getSmsBooles(postPointmentDTO,requestHeaderUtil);
         JSONObject dataObject = aaa.getJSONObject("data");
         Boolean needsms = dataObject.getBoolean("needsms");
@@ -287,4 +290,64 @@ public class Function {
         }
         return null;
     }
+
+    /**
+     *获取验证码(响应滑块)
+     *   POST https://hsn.sinograin.com.cn/slyyServlet//service/captcha/getCaptcha
+     *   接口ID：340218781
+     *   接口地址：https://app.apifox.com/link/project/6997949/apis/api-340218781
+     */
+    public JSONObject  getCaptcha(RequestHeaderUtil requestHeaderUtil){
+        JSONObject re  = api.getSliderCaptcha(requestHeaderUtil);
+        if (re != null && re.getInteger("status") == 200){
+            return re;
+        }
+        return null;
+    }
+    /**
+     * 验证验证码(滑块)
+     *   POST https://hsn.sinograin.com.cn/slyyServlet//service/captcha/checkCaptcha
+     *   接口ID：340218782
+     *   接口地址：https://app.apifox.com/link/project/6997949/apis/api-340218782
+     */
+    public JSONObject checkCaptcha(RequestHeaderUtil requestHeaderUtil, JSONObject data){
+        JSONObject re = api.checkSliderCaptcha(requestHeaderUtil, data);
+        log.info("checkSliderCaptcha:{}",re);
+        if (re != null && re.getInteger("status") == 200){
+            return re;
+        }
+        return null;
+    }
+
+    /**
+     * 获取验证码(响应点击文字)
+     *   POST https://hsn.sinograin.com.cn/slyyServlet//service/captcha/getCaptcha
+     *   接口ID：340218783
+     *   接口地址：https://app.apifox.com/link/project/6997949/apis/api-340218783
+     */
+    public JSONObject getCaptchaText(RequestHeaderUtil requestHeaderUti){
+        JSONObject re  = api.getWordClickCaptcha(requestHeaderUti);
+        if (re != null && re.getInteger("status") == 200){
+            return re;
+        }
+        return null;
+    }
+    /**
+     * 验证验证码(点击文字)
+     *   POST https://hsn.sinograin.com.cn/slyyServlet//service/captcha/checkCaptcha
+     *   接口ID：340218784
+     *   接口地址：https://app.apifox.com/link/project/6997949/apis/api-340218784
+     */
+    public JSONObject checkCaptchaText(RequestHeaderUtil requestHeaderUtil, String captchaId, Map<String, Object> data){
+        JSONObject re  = api.checkWordClickCaptcha(requestHeaderUtil,  captchaId,  data);
+        if (re != null && re.getInteger("status") == 200){
+            return re;
+        }
+        return null;
+    }
+
+
+    /**
+     * 验证
+     */
 }

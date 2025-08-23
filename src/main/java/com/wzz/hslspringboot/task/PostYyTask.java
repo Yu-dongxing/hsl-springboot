@@ -3,6 +3,8 @@ package com.wzz.hslspringboot.task;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
 import com.wzz.hslspringboot.service.AppointmentProcessorService;
 import com.wzz.hslspringboot.service.UserSmsWebSocketService;
+import com.wzz.hslspringboot.utils.DataConverterUtil;
+import com.wzz.hslspringboot.utils.DateTimeUtil;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.apache.logging.log4j.LogManager;
@@ -61,6 +63,7 @@ public class PostYyTask {
      */
     @Scheduled(fixedRate = 1000)
     public void scheduleNewAppointments() {
+        log.info("<每秒执行一次>");
         // 1. 从数据库查询所有状态为“待处理”的任务
         List<UserSmsWebSocket> pendingTasks = userSmsWebSocketService.getAll(STATUS_PENDING);
 
@@ -74,6 +77,7 @@ public class PostYyTask {
             LocalDateTime appointmentDateTime;
             try {
                 appointmentDateTime = LocalDateTime.parse(user.getAppointmentTime(), APPOINTMENT_TIME_FORMATTER);
+                 LocalDateTime w = DateTimeUtil.parseDateTime(user.getAppointmentTime());
             } catch (DateTimeParseException e) {
                 log.error("用户ID: {} 的预约时间'{}'格式无效，请使用'yyyy-MM-dd HH:mm:ss'格式。", user.getId(), user.getAppointmentTime());
                 userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_INVALID_TIME, "预约时间格式错误: " + e.getMessage());

@@ -12,6 +12,8 @@ import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
 import com.wzz.hslspringboot.utils.EncryptionUtil;
 import com.wzz.hslspringboot.utils.HttpRequestUtil;
 import com.wzz.hslspringboot.utils.RequestHeaderUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +25,7 @@ import java.util.Map;
  */
 @Component
 public class Modules {
+    private static final Logger log = LogManager.getLogger(Modules.class);
 
     // 建议将 HttpRequestUtil 实例化为成员变量，避免在每个方法中都 new 一个实例
 //    private final HttpRequestUtil util = new HttpRequestUtil();
@@ -249,4 +252,66 @@ public class Modules {
             return errorResult;
         }
     }
+    /**
+     * 获取验证码(响应滑块)
+     * POST /slyyServlet/service/captcha/getCaptcha
+     * 接口ID：340218781
+     * 接口地址：https://app.apifox.com/link/project/6997949/apis/api-340218781
+     * @param requestHeaderUtil 请求头工具
+     * @return JSONObject
+     */
+    public JSONObject getSliderCaptcha(RequestHeaderUtil requestHeaderUtil) {
+        // 根据文档，请求体为空对象
+        return util.postJson("/slyyServlet/service/captcha/getCaptcha", requestHeaderUtil, null);
+    }
+
+    /**
+     * 验证验证码(滑块)
+     * POST /slyyServlet/service/captcha/checkCaptcha
+     * 接口ID：340218782
+     * 接口地址：https://app.apifox.com/link/project/6997949/apis/api-340218782
+     * @param requestHeaderUtil 请求头工具
+     * @param data 包含轨迹等信息的验证数据
+     * @return JSONObject
+     */
+    public JSONObject checkSliderCaptcha(RequestHeaderUtil requestHeaderUtil, JSONObject data) {
+        log.info("data: " + data);
+        return util.postJson("/slyyServlet//service/captcha/checkCaptcha", requestHeaderUtil, data.toString());
+    }
+
+    /**
+     * 获取验证码(响应点击文字)
+     * POST /slyyServlet/service/captcha/getCaptcha
+     * 接口ID：340218783
+     * 接口地址：https://app.apifox.com/link/project/6997949/apis/api-340218783
+     * @param requestHeaderUtil 请求头工具
+     * @return JSONObject
+     */
+    public JSONObject getWordClickCaptcha(RequestHeaderUtil requestHeaderUtil) {
+        // 根据文档，此接口与获取滑块验证码的请求完全相同
+        return util.postJson("/slyyServlet/service/captcha/getCaptcha", requestHeaderUtil, "{}");
+    }
+
+
+    /**
+     * 验证验证码(点击文字)
+     * POST /slyyServlet/service/captcha/checkCaptcha
+     * 接口ID：340218784
+     * 接口地址：https://app.apifox.com/link/project/6997949/apis/api-340218784
+     * @param requestHeaderUtil 请求头工具
+     * @param captchaId 验证码的唯一ID
+     * @param data 包含点击坐标和轨迹等信息的验证数据
+     * @return JSONObject
+     */
+    public JSONObject checkWordClickCaptcha(RequestHeaderUtil requestHeaderUtil, String captchaId, Map<String, Object> data) {
+        // 根据文档，此接口与验证滑块验证码的请求结构完全相同
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("id", captchaId);
+        payload.put("data", data);
+        // 将Map对象序列化为JSON字符串作为请求体
+        return util.postJson("/slyyServlet/service/captcha/checkCaptcha", requestHeaderUtil, JSON.toJSONString(payload));
+    }
+
+
+
 }

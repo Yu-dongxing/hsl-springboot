@@ -6,6 +6,8 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wzz.hslspringboot.Captcha.Captcha;
+import com.wzz.hslspringboot.Captcha.CaptchaData;
 import com.wzz.hslspringboot.DTO.PostPointmentDTO;
 import com.wzz.hslspringboot.apis.Function;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
@@ -20,6 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.stereotype.Component;
+
+import java.io.IOException;
 
 
 @Component
@@ -42,7 +46,7 @@ class HslSpringbootApplicationTests {
     private UserSmsWebSocketService userSmsWebSocketService;
 
     @Test
-    void contextLoads() throws InterruptedException {
+    void contextLoads() throws InterruptedException, IOException {
 
 
         /**
@@ -219,6 +223,13 @@ class HslSpringbootApplicationTests {
          * 发送手机验证码
          */
         JSONObject checkRe= function.checkData(postPointmentDTO,requestHeaderUtil,u);
+
+        /**
+         * 获取图片或滑动验证码
+         */
+
+
+
 
         String e = encryptionUtil.rsa(postPointmentDTO);
         postPointmentDTO.setSecretData(e);

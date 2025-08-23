@@ -69,11 +69,9 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
             // --- 记录不存在，执行插入操作 ---
             // 直接使用传入的对象，但将 message 字段替换为解析后的验证码
             incomingSmsData.setUserSmsMessage(verificationCode);
+
             userSmsWebSocketMapper.insert(incomingSmsData);
         } else {
-            // --- 记录已存在，执行更新操作 ---
-            // 5. 配置拷贝选项：忽略源对象中的 null 值
-            // 这是安全使用 copyProperties 的关键，防止 null 值覆盖数据库中已有的数据
             CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
             // 6. 执行拷贝：将传入对象(source)的非空属性，覆盖到从数据库查出的对象(target)上
             BeanUtil.copyProperties(incomingSmsData, existingRecord, copyOptions);

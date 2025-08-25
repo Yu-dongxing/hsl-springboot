@@ -41,8 +41,14 @@ public class CaptchaData {
         JSONObject jsonObject = new JSONObject();
         JSONObject dataJson = new JSONObject();
         jsonObject.put("bgImageWidth", 300);
-        jsonObject.put("templateImageWidth", 55);
-        jsonObject.put("templateImageHeight", 180);
+        if (type.equals("WORD_IMAGE_CLICK")){
+            jsonObject.put("templateImageWidth", 132);
+            jsonObject.put("templateImageHeight", 35);
+        }else {
+            jsonObject.put("templateImageWidth", 55);
+            jsonObject.put("templateImageHeight", 180);
+        }
+
         jsonObject.put("bgImageHeight", 180);
         jsonObject.put("trackList", trackList);
         jsonObject.put("startTime", startTime);

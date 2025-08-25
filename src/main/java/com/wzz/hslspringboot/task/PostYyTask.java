@@ -1,7 +1,9 @@
 package com.wzz.hslspringboot.task;
 
+import com.wzz.hslspringboot.pojo.NewSysConfig;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
 import com.wzz.hslspringboot.service.AppointmentProcessorService;
+import com.wzz.hslspringboot.service.SysConfigService;
 import com.wzz.hslspringboot.service.UserSmsWebSocketService;
 import com.wzz.hslspringboot.utils.DataConverterUtil;
 import com.wzz.hslspringboot.utils.DateTimeUtil;
@@ -13,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -41,6 +44,9 @@ public class PostYyTask {
     @Autowired
     private AppointmentProcessorService appointmentProcessorService;
 
+    @Autowired
+    private SysConfigService sysConfigService;
+
     // 使用虚拟线程的 ScheduledExecutorService 来执行定时任务
     private ScheduledExecutorService scheduler;
 
@@ -66,7 +72,7 @@ public class PostYyTask {
         log.info("<每秒执行一次>");
         // 1. 从数据库查询所有状态为“待处理”的任务
         List<UserSmsWebSocket> pendingTasks = userSmsWebSocketService.getAll(STATUS_PENDING);
-
+        log.info("<<UNK>>::{}",pendingTasks);
         for (UserSmsWebSocket user : pendingTasks) {
             // 2. 检查任务是否已经被调度，如果已在处理中，则跳过
             if (scheduledTasks.containsKey(user.getId())) {
@@ -77,17 +83,52 @@ public class PostYyTask {
             LocalDateTime appointmentDateTime;
             try {
                 appointmentDateTime = LocalDateTime.parse(user.getAppointmentTime(), APPOINTMENT_TIME_FORMATTER);
-                 LocalDateTime w = DateTimeUtil.parseDateTime(user.getAppointmentTime());
+//                 LocalDateTime w = DateTimeUtil.parseDateTime(user.getAppointmentTime());
             } catch (DateTimeParseException e) {
                 log.error("用户ID: {} 的预约时间'{}'格式无效，请使用'yyyy-MM-dd HH:mm:ss'格式。", user.getId(), user.getAppointmentTime());
                 userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_INVALID_TIME, "预约时间格式错误: " + e.getMessage());
                 continue; // 处理下一个
             }
 
+
+            NewSysConfig co = sysConfigService.getConfigByName("sys_config");
+
+            // 2. 解析数据，获取需要提前的秒数 (yzm_time_s)
+            int yzmTimeS = 0; // 默认值为0，即不提前
+            if (co != null && co.getConfigValue() != null) {
+                // 推荐做法：假设 getConfigValue() 返回的是一个 Map<String, Object>
+                // 这是在现代JSON序列化框架(如Jackson/Gson)中常见的做法
+                try {
+                    // 直接从Map中获取值
+                    Object yzmValue = co.getConfigValue().get("yzm_time_s");
+                    if (yzmValue instanceof Number) {
+                        yzmTimeS = ((Number) yzmValue).intValue();
+                    }
+                } catch (Exception e) {
+                    log.error("解析系统配置 'sys_config' 中的 yzm_time_s 失败，将使用默认值0。", e);
+                    // 在这里可以根据业务决定是否因为配置解析失败而中断流程
+                }
+            }
+            log.info("系统配置：任务将提前 {} 秒执行。", yzmTimeS);
+
             // 4. 计算距离现在需要延迟多久执行
-            long delayMillis = java.time.Duration.between(LocalDateTime.now(), appointmentDateTime).toMillis();
+//            long delayMillis = java.time.Duration.between(LocalDateTime.now(), appointmentDateTime).toMillis();
+//            if (delayMillis < 0) {
+//                delayMillis = 0; // 如果时间已过，立即执行
+//            }
+
+            // 3. 将提前的秒数转换为毫秒
+            long advanceMillis = yzmTimeS * 1000L; // 使用 'L' 确保结果是 long 类型
+
+            // 4. 计算距离现在需要延迟多久执行
+            // 原始延迟 = 预约时间 - 当前时间
+            long initialDelayMillis = Duration.between(LocalDateTime.now(), appointmentDateTime).toMillis();
+
+            // 最终延迟 = 原始延迟 - 需要提前的毫秒数
+            long delayMillis = initialDelayMillis - advanceMillis;
+
             if (delayMillis < 0) {
-                delayMillis = 0; // 如果时间已过，立即执行
+                delayMillis = 0; // 如果计算后的时间已过或非常接近，立即执行
             }
 
             // 5. 提交任务到调度器
@@ -97,7 +138,7 @@ public class PostYyTask {
                 // 6. 将任务放入跟踪Map，并更新数据库状态为“已调度”
                 scheduledTasks.put(user.getId(), future);
                 userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_SCHEDULED, "任务已进入调度队列，等待执行。");
-                log.info("用户ID: {} 的任务已成功调度，将在 {} 毫秒后执行。", user.getId(), delayMillis);
+                log.info("用户ID: {} 的任务已成功调度，将在 {} 毫秒后执行（已提前 {} 秒）。", user.getId(), delayMillis, yzmTimeS);
 
             } catch (Exception e) {
                 log.error("调度用户ID: {} 的任务时发生异常。", user.getId(), e);

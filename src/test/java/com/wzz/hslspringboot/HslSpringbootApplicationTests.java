@@ -24,6 +24,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.LocalDateTime;
 
 
 @Component
@@ -44,6 +46,8 @@ class HslSpringbootApplicationTests {
 
     @Autowired
     private UserSmsWebSocketService userSmsWebSocketService;
+
+    EncryptionUtil encryptionUtil = new EncryptionUtil();
 
     @Test
     void contextLoads() throws InterruptedException, IOException {
@@ -99,12 +103,12 @@ class HslSpringbootApplicationTests {
                     } else {
                         mobileDeviceId = "";
                     }
-
                     postPointmentDTO.setMobileDeviceId(mobileDeviceId);
                     postPointmentDTO.setOpenId(mobileDeviceId);
                 }
             }
         }
+
         /**
          * 获取车牌号
          */
@@ -119,13 +123,10 @@ class HslSpringbootApplicationTests {
                  * no
                  */
                 postPointmentDTO.setCllxNm(cphlx);
-
-                postPointmentDTO.setCphStr(u.getVehicleLicensePlateNumber());
+                postPointmentDTO.setCphStr(u.getVehicleLicensePlateNumber()+",");
                 log.info("找到车牌号数据：{}，汽车类型：{}", vehicleInfo,vehicleInfo.getString("cclx"));
             }
         }
-        //构建提交数据
-//        PostPointmentDTO po = new PostPointmentDTO(userNm,);
 
         /**
          * 搜索粮库信息
@@ -143,16 +144,11 @@ class HslSpringbootApplicationTests {
         String kssj = "";
         String jssj = "";
         String pznm_from_yypzmxnm = "";
-
-
-
         JSONArray yypzmxList = data.getJSONArray("yypzmxList");
         JSONObject firstTimeSlot = yypzmxList.getJSONObject(0);
         kssj = firstTimeSlot.getString("kssj");
         jssj = firstTimeSlot.getString("jssj");
         pznm_from_yypzmxnm = firstTimeSlot.getString("yypzmxnm");
-
-
         postPointmentDTO.setRq(rq);
         postPointmentDTO.setZzmc(zzmc);
         postPointmentDTO.setZznm(zznm);
@@ -164,8 +160,6 @@ class HslSpringbootApplicationTests {
         postPointmentDTO.setKssj(kssj);
         postPointmentDTO.setJssj(jssj);
         postPointmentDTO.setPzmxnm(pznm_from_yypzmxnm);
-
-
         String lspzString = data.getString("lspz");
         JSONArray lspzArray = JSON.parseArray(lspzString);
         String lsmc = "";
@@ -182,10 +176,6 @@ class HslSpringbootApplicationTests {
                 }
             }
         }
-
-        EncryptionUtil encryptionUtil = new EncryptionUtil();
-
-
         log.info("预约配置列表: {}",firstTimeSlot);
         System.out.println("返回数据"+rejson.toString());
 
@@ -207,26 +197,78 @@ class HslSpringbootApplicationTests {
         postPointmentDTO.setCyrsjh("");
 
         /**
-         * 获取随机数
+         * getGrxxStatus
          */
-        JSONObject o =function.getRandomcode(u,requestHeaderUtil);
-        log.info("获取随机数 :{}",o);
-        JSONObject dataJson = o.getJSONObject("data");
-        String randomCode = dataJson.getString("randomCode");
-        log.info("成功解析到 randomCode: {}", randomCode);
-        postPointmentDTO.setLxfs(u.getUserPhone()+"_"+randomCode);
+        JSONObject  tr = function.getGrxxStatus(postPointmentDTO,requestHeaderUtil,u);
+        log.info("<getGrxxStatus>{}",tr);
+        /**
+         *hdmCheck
+         */
+        JSONObject ew = function.hdmCheck(requestHeaderUtil,u);
+        log.info("<hdmCheck>{}",ew);
+
 
 
         /**
-         * 获取是否需要短信验证码
+         * getDistanceByCurrentLocation
+         */
+        JSONObject qs = function.getDistanceByCurrentLocation(postPointmentDTO.getZznm(),postPointmentDTO.getLongitude(),postPointmentDTO.getLatitude(),postPointmentDTO, requestHeaderUtil, u);
+        log.info("<getDistanceByCurrentLocation>{}", qs);
+
+        /**
+         * getSmsBooles
+         */
+        JSONObject lw = function.getSmsBooles(postPointmentDTO,requestHeaderUtil);
+        log.info("<getSmsBooles>{}",lw);
+
+
+
+        /**
+         * 获取随机数
+         */
+        function.getRandomcode(postPointmentDTO, requestHeaderUtil,u);
+
+
+
+        /**
          * 获取图片验证码
          * 发送手机验证码
          */
         JSONObject checkRe= function.checkData(postPointmentDTO,requestHeaderUtil,u);
+        if (!checkRe.getBoolean("needsms")){
+            postPointmentDTO.setDxyzm("");
+        }
+        UserSmsWebSocket ua = userSmsWebSocketService.ByUserPhoneSelect(postPointmentDTO.getPhone());
+        if (ua != null) {
+            // 获取用户上传验证码的时间戳
+            LocalDateTime upSmsTime = ua.getUpSmsTime();
+            // 获取服务器当前时间
+            LocalDateTime now = LocalDateTime.now();
+            // 计算从上传验证码到当前时间的时间差
+            Duration duration = Duration.between(upSmsTime, now);
+            // 获取时间差的总秒数
+            long secondsDifference = duration.getSeconds();
+            // 判断时间差是否超过30秒
+            if (secondsDifference > 30) {
+                log.info("<验证码已超过30秒有效期，需要用户重新获取。>");
+                postPointmentDTO.setDxyzm("");
+
+            } else {
+                postPointmentDTO.setDxyzm(ua.getUserSmsMessage());
+            }
+        }
+
+
+        /**
+         * 检查车牌号
+         */
+        JSONObject se = function.checkCphYycs(postPointmentDTO,requestHeaderUtil);
+        log.info("<检查车牌号>{}",se);
 
         /**
          * 获取图片或滑动验证码
          */
+//        function.checkCphYycs(postPointmentDTO,requestHeaderUtil);
 
 
 
@@ -242,22 +284,6 @@ class HslSpringbootApplicationTests {
         } catch (JsonProcessingException jsonProcessingException) {
             log.error("DTO转JSON失败", jsonProcessingException);
         }
-
-
-
         log.info("提交：{}",function.postInfo(requestHeaderUtil,postPointmentDTO));
-
     }
-
-    @Test
-    void tt(){
-        UserSmsWebSocket u = userSmsWebSocketService.ByUserPhoneSelect("13170151816");
-        appointmentProcessorService.processAppointment(u);
-    }
-
-    /**
-     * 封装（）
-     */
-
-
 }

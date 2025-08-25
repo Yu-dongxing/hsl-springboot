@@ -4,6 +4,7 @@ import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
+import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.JSONException;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
@@ -14,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Component
@@ -123,6 +126,21 @@ public class HttpRequestUtil {
         log.info("Response formData: [{}]", formData);
         return executeRequest(request, headers);
     }
+    public JSONObject postForm2(String urlPath, RequestHeaderUtil headers, Map<String, Object> formData) {
+        String fullUrl = baseUrl + urlPath;
+        HttpRequest request = HttpRequest.post(fullUrl);
+        String body=toFormString(formData);
+        System.out.println("请求体"+body);
+        if (MapUtil.isNotEmpty(formData)) {
+            request.body(body);
+            request.header("Content-Type", "application/x-www-form-urlencoded");
+        } else {
+            // 确保即使 formData 为 null，也发送 Content-Length: 0 的请求，以匹配 Postman 的行为
+            request.header("Content-Length", "0");
+            request.header("Content-Type", "application/x-www-form-urlencoded");
+        }
+        return executeRequest(request, headers);
+    }
 
     /**
      * 发送POST JSON请求
@@ -133,12 +151,12 @@ public class HttpRequestUtil {
      */
     public JSONObject postJson(String urlPath, RequestHeaderUtil headers, String jsonBody) {
         String fullUrl = baseUrl + urlPath;
-        HttpRequest request = HttpRequest.post(fullUrl);
-//        if (StrUtil.isNotBlank(jsonBody)) {
-//            request.body(jsonBody);
-//            // Hutool 会自动设置 Content-Type 为 application/json
-//        }
-        request.body(jsonBody);
+        HttpRequest request = HttpUtil.createPost(fullUrl);
+        if (StrUtil.isNotBlank(jsonBody)) {
+            request.body(jsonBody);
+            request.header("Content-Type", "application/json;charset=UTF-8");
+            // Hutool 会自动设置 Content-Type 为 application/json
+        }
         log.info("发送POST JSON请求: [{}]", request.toString());
         return executeRequest(request, headers);
     }
@@ -158,6 +176,18 @@ public class HttpRequestUtil {
         }
     }
 
+    public static String toFormString(Map<String, Object> formData) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Object> entry : formData.entrySet()) {
+            if (sb.length() > 0) {
+                sb.append("&");
+            }
+            sb.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8));
+            sb.append("=");
+            sb.append(URLEncoder.encode(String.valueOf(entry.getValue()), StandardCharsets.UTF_8));
+        }
+        return sb.toString();
+    }
 
     /**
      * 核心请求执行逻辑
@@ -173,10 +203,10 @@ public class HttpRequestUtil {
 
     private JSONObject executeRequest(HttpRequest request, RequestHeaderUtil headers) {
         // 应用请求头
+        System.setProperty("sun.net.http.allowRestrictedHeaders", "true");
         if (headers != null && headers.getHeader() != null) {
             request.addHeaders(headers.getHeader());
         }
-        log.info("<UNK> <UNK>: [{}]", headers.toString());
 
         // --- 修改：在执行前设置超时 ---
         request.setConnectionTimeout(2000); // 设置连接超时

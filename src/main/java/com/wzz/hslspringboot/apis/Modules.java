@@ -55,9 +55,44 @@ public class Modules {
         Map<String, Object> params = new HashMap<>();
         params.put("phone", userSmsWebSocket.getUserPhone());
         params.put("devicetype", "weixin");
-        return util.postForm("/slyyServlet/service/nhyy/getRandomCode",requestHeaderUtil,params);
+        log.info("获取随机数提交数据：{}",params);
+        return util.postForm2("/slyyServlet/service/nhyy/getRandomCode",requestHeaderUtil,params);
     }
 
+    /**
+     * POST /slyyServlet/service/grxx/getGrxxStatus
+     */
+    public JSONObject getGrxxStatus (UserSmsWebSocket userSmsWebSocket, RequestHeaderUtil requestHeaderUtil,PostPointmentDTO postPointmentDTO){
+        Map<String, Object> params = new HashMap<>();
+        params.put("userId", postPointmentDTO.getTjr());
+        params.put("zznm",postPointmentDTO.getZznm());
+        params.put("deviceType", "weixin");
+        return util.postForm("/slyyServlet/service/grxx/getGrxxStatus",requestHeaderUtil,params);
+    }
+
+    /**
+     * POST /slyyServlet/service/nhyy/hdmCheck
+     */
+    public JSONObject hdmCheck (UserSmsWebSocket userSmsWebSocket, RequestHeaderUtil requestHeaderUtil){
+        Map<String, Object> params = new HashMap<>();
+        params.put("sfz",userSmsWebSocket.getUserIdCard());
+        params.put("deviceType", "weixin");
+        return util.postForm("/slyyServlet/service/nhyy/hdmCheck",requestHeaderUtil,params);
+    }
+
+    /**
+     * POST /slyyServlet/service/nhyy/getDistanceByCurrentLocation
+     */
+    public JSONObject getDistanceByCurrentLocation(String lkdm,String lklongitude, String lklatitude,UserSmsWebSocket userSmsWebSocket, RequestHeaderUtil requestHeaderUtil){
+        Map<String, Object> params = new HashMap<>();
+        params.put("longitude",userSmsWebSocket.getUserLongitude());
+        params.put("latitude",userSmsWebSocket.getUserLatitude());
+        params.put("lklongitude", lklongitude);
+        params.put("lklatitude", lklatitude);
+        params.put("lkdm", lkdm);
+        params.put("deviceType", "weixin");
+        return util.postForm("/slyyServlet/service/nhyy/getDistanceByCurrentLocation",requestHeaderUtil,params);
+    }
 
     /**
      * 获取车船号
@@ -274,9 +309,13 @@ public class Modules {
      * @param data 包含轨迹等信息的验证数据
      * @return JSONObject
      */
-    public JSONObject checkSliderCaptcha(RequestHeaderUtil requestHeaderUtil, JSONObject data) {
+    public JSONObject checkSliderCaptcha(RequestHeaderUtil requestHeaderUtil, String data) {
         log.info("data: " + data);
-        return util.postJson("/slyyServlet//service/captcha/checkCaptcha", requestHeaderUtil, data.toString());
+        return util.postJson("/slyyServlet//service/captcha/checkCaptcha", requestHeaderUtil, data);
+    }
+    public JSONObject checkCphYycs(RequestHeaderUtil requestHeaderUtil, Map<String,Object> data) {
+        log.info("data: " + data);
+        return util.postForm("/slyyServlet/service/nhyy/checkCphYycs", requestHeaderUtil, data) ;
     }
 
     /**

@@ -3,6 +3,7 @@ package com.wzz.hslspringboot.Captcha;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -17,10 +18,14 @@ public class CaptchaUtil {
             String[] XY = dataArray[i].split(",");
             JSONObject obj = new JSONObject();
             if (i>0){
-                t += 100 + new Random().nextInt(701);
+                t += 120 + new Random().nextInt(1200);
             }
-            obj.put("x", Integer.parseInt(XY[0]));
-            obj.put("y",Integer.parseInt(XY[0]));
+            Random random = new Random();
+            int randomNum = random.nextInt(9);
+            Random random2 = new Random();
+            int randomNum2 = random2.nextInt(9);
+            obj.put("x", Integer.parseInt(XY[0])/2+randomNum);
+            obj.put("y",Integer.parseInt(XY[1])/2+randomNum2);
             obj.put("type", "click");
             obj.put("t", t);
             jsonArray.add(obj);
@@ -47,6 +52,17 @@ public class CaptchaUtil {
         sb.append("]");
         JSONArray jsonArray = JSONArray.parseArray(sb.toString());
         int t = jsonArray.getJSONObject(jsonArray.size() - 1).getIntValue("t");
+//        // 1. 使用 Instant 类来处理时间戳，它本身就是UTC时间。
+//        Instant stopTime = Instant.now();
+//
+//        // 2. 使用 minusMillis() 来精确地减去耗时，避免精度丢失。
+//        Instant startTime = stopTime.minusMillis(t);
+//
+//        // 3. Instant.toString() 会自动生成标准 ISO-8601 格式 (例如 "2025-08-25T14:42:50.123Z")
+//        //    这个格式是所有现代JSON解析库都能正确识别的。
+//        captchaData.setStartTime(startTime.toString());
+//        captchaData.setStopTime(stopTime.toString());
+//
         captchaData.setTrackList(jsonArray);
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime last = now.minusSeconds(t/1000);

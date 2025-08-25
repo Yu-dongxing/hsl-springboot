@@ -50,7 +50,7 @@ public class RequestHeaderUtil {
             this.JSESSIONID = jsonObject.getString("JSESSIONID");
             this.ss_ctrl = jsonObject.getString("ss_ctrl");
             this.xxx = jsonObject.getString("xxx");
-            this.Referer = jsonObject.getString("Referer");
+            this.Referer = "Referer:"+jsonObject.getString("Referer");
             this.mobileDeviceId = jsonObject.getString("mobileDeviceId");
         } catch (Exception e) {
             // 记录日志或者处理异常，例如设置默认值
@@ -71,9 +71,7 @@ public class RequestHeaderUtil {
         map.put("Accept-Language","zh-CN,zh-Hans;q=0.9");
         map.put("Accept","*/*");
         map.put("Sec-Fetch-Mode", "cors");
-        map.put("Content-Type", "application/x-www-form-urlencoded");
         map.put("Origin","https://hsn.sinograin.com.cn");
-        map.put("Content-Length","0");
         map.put("Sec-Fetch-Dest","empty");
         map.put("User-Agent","Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.62(0x18003e2d) NetType/WIFI Language/zh_CN miniProgram/");
         map.put("Cookie",this.cookie);

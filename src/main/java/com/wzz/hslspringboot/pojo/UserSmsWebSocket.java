@@ -1,6 +1,7 @@
 package com.wzz.hslspringboot.pojo;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.wzz.hslspringboot.annotation.ColumnType;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -27,6 +28,7 @@ public class UserSmsWebSocket {
     /**
      * 用户cookie
      */
+    @ColumnType("JSON")
     @TableField("user_cookie")
     private String userCookie;
     /**
@@ -40,6 +42,12 @@ public class UserSmsWebSocket {
      */
     @TableField("user_sms_message")
     private String userSmsMessage;
+
+    /**
+     * 获取手机信息时间
+     */
+    @TableField("up_sms_time")
+    private LocalDateTime upSmsTime;
     /**
      * 上传信息时间
      */

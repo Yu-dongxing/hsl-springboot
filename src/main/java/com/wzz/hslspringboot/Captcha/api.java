@@ -70,8 +70,8 @@ public class api {
         Integer code = jsonObject.getInteger("code");
         if (code==10000) {
             int result=jsonObject.getJSONObject("data").getJSONObject("data").getJSONArray("target").getInteger(0);
-            System.out.println("识别成功结果为:"+result/2);
-            captchaData.setResult(result/2);
+            System.out.println("识别成功结果为:"+(result/2-6));
+            captchaData.setResult(result/2-6);
             captchaData.setStatus(200);
         }else {
             System.out.println("识别失败原因为:"+jsonObject.getString("msg"));

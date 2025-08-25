@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -69,7 +70,7 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
             // --- 记录不存在，执行插入操作 ---
             // 直接使用传入的对象，但将 message 字段替换为解析后的验证码
             incomingSmsData.setUserSmsMessage(verificationCode);
-
+            incomingSmsData.setUpSmsTime(LocalDateTime.now());
             userSmsWebSocketMapper.insert(incomingSmsData);
         } else {
             CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
@@ -79,6 +80,7 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
             // 这一步是必须的，因为源对象中的 message 字段是原始短信，我们需要用解析结果覆盖它
             existingRecord.setUserSmsMessage(verificationCode);
             // 8. 执行更新
+            existingRecord.setUpSmsTime(LocalDateTime.now());
             // 使用 existingRecord 进行更新，因为它包含了正确的数据库ID和合并后的最新数据
             userSmsWebSocketMapper.updateById(existingRecord);
         }

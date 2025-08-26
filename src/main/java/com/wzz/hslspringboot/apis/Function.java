@@ -1,5 +1,8 @@
 package com.wzz.hslspringboot.apis;
 
+import cn.hutool.http.HttpRequest;
+import cn.hutool.http.HttpResponse;
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.wzz.hslspringboot.Captcha.Captcha;
@@ -13,8 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -461,5 +462,7 @@ public class Function {
         JSONObject re = api.getDistanceByCurrentLocation(lkdm,lklongitude,lklatitude,u,requestHeaderUtil);
         return re;
     }
+
+
 
 }

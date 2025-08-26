@@ -3,6 +3,7 @@ package com.wzz.hslspringboot.utils;
 
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.URLUtil;
 import cn.hutool.crypto.asymmetric.KeyType;
 import cn.hutool.crypto.asymmetric.RSA;
 import cn.hutool.crypto.digest.DigestUtil;
@@ -40,11 +41,18 @@ public class EncryptionUtil {
         log.info("<加密的数据,拼接后：>{}",str);
         RSA rsa = new RSA(null,publicKey);
         byte[] encrypt = rsa.encrypt(StrUtil.bytes(str, CharsetUtil.CHARSET_UTF_8), KeyType.PublicKey);
-
+        log.info("<加密后的数据：：>{}",Base64.getEncoder().encodeToString(encrypt));
         return Base64.getEncoder().encodeToString(encrypt);
     }
 
-
+//    public static void main(String[] args) {
+//        String publicKey="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0uFFjWtTp+La/vi/MqlnuoMpHYR8QNVSuaV0WA0eYei+FnWt9e+pCYfocL8/tMQA4vWxCM9ZcffsgknC1H7hbKEnIAGrG+FOCTzzlWUbm9N7XdVUuyD5hrjr79rN64lwKR5SY0msogBdCf5Nlt4QX1A5klVnDU7NfCyBNmIo6G2tWWCsEEL7mp4PyEjD0LXmx8uBVboexkmIBV/eFTNdIduCKsCp43SCpyu8yfZ6aaSLlHP5Pj3cyC5IzTqBBeiSu/JyXoE9X4D6rxnzc+Ge/stpzXV9Qe9ZC85TsxfmDkERB61rYbrOq7dnw8aAGtkwaGvdqjAPLGK1dGileBOy1QIDAQAB";
+//        String str="13170151816i3af35309a782460ea167efc8e9693574n964b6c405419495eafc34264fd55f039s522427200208012257p20250825u晋CC0753,rzh8080816c611ae0016c6138cd030005O00000000000000058682d497769fad44eb690a7ef1f930b9ec01预约挂号";
+//        RSA rsa = new RSA(null,publicKey);
+//        byte[] encrypt = rsa.encrypt(StrUtil.bytes(str, CharsetUtil.CHARSET_UTF_8), KeyType.PublicKey);
+//        String m=Base64.getEncoder().encodeToString(encrypt);
+//        System.out.println(m);
+//    }
     /**
      * 请求加密数据
      */

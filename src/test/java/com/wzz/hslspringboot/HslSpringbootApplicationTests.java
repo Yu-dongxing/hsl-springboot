@@ -97,14 +97,9 @@ class HslSpringbootApplicationTests {
                 String mobileDeviceId = "";
                 if(!StrUtil.hasBlank(requestHeaderUtil.getMobileDeviceId())) {
                     mobileDeviceIdStr = requestHeaderUtil.getMobileDeviceId(); // "mobileDeviceId=os7mus9HY8oa5IQjlAevxA5YdUVM"
-                    String[] parts = mobileDeviceIdStr.split("=");
-                    if (parts.length > 1) {
-                        mobileDeviceId = parts[1]; // 获取"="后面的部分
-                    } else {
-                        mobileDeviceId = "";
-                    }
-                    postPointmentDTO.setMobileDeviceId(mobileDeviceId);
-                    postPointmentDTO.setOpenId(mobileDeviceId);
+
+                    postPointmentDTO.setMobileDeviceId(mobileDeviceIdStr);
+                    postPointmentDTO.setOpenId(mobileDeviceIdStr);
                 }
             }
         }
@@ -177,24 +172,9 @@ class HslSpringbootApplicationTests {
             }
         }
         log.info("预约配置列表: {}",firstTimeSlot);
-        System.out.println("返回数据"+rejson.toString());
+        log.info("返回数据:{}", rejson.toString());
 
-        postPointmentDTO.setSl(u.getFoodOfGrainNum());
-        postPointmentDTO.setPhone(u.getUserPhone());
-        postPointmentDTO.setYyr(u.getUserName());
-        postPointmentDTO.setYwlx("0");
-        postPointmentDTO.setCyrnm("");
-        postPointmentDTO.setTzdbh("");
-        postPointmentDTO.setCyr("");
-        postPointmentDTO.setCyrsfzh("");
-        postPointmentDTO.setQymc("");
-        postPointmentDTO.setXydm("");
-        postPointmentDTO.setWxdlFlag("true");
-        postPointmentDTO.setYyfsnm("1");
-        postPointmentDTO.setYyfsmc("预约挂号");
-        postPointmentDTO.setDevicetype("weixin");
-        postPointmentDTO.setZldd("");
-        postPointmentDTO.setCyrsjh("");
+
 
         /**
          * getGrxxStatus
@@ -208,19 +188,25 @@ class HslSpringbootApplicationTests {
         log.info("<hdmCheck>{}",ew);
 
 
-
         /**
          * getDistanceByCurrentLocation
          */
         JSONObject qs = function.getDistanceByCurrentLocation(postPointmentDTO.getZznm(),postPointmentDTO.getLongitude(),postPointmentDTO.getLatitude(),postPointmentDTO, requestHeaderUtil, u);
         log.info("<getDistanceByCurrentLocation>{}", qs);
 
+
+
+
         /**
          * getSmsBooles
          */
         JSONObject lw = function.getSmsBooles(postPointmentDTO,requestHeaderUtil);
         log.info("<getSmsBooles>{}",lw);
-
+        /**
+         * getResvSjList
+         */
+        JSONObject SjList = function.getResvSjList(requestHeaderUtil,data);
+        log.info("<getSmsBooles>{}",SjList);
 
 
         /**
@@ -265,10 +251,26 @@ class HslSpringbootApplicationTests {
         JSONObject se = function.checkCphYycs(postPointmentDTO,requestHeaderUtil);
         log.info("<检查车牌号>{}",se);
 
-        /**
-         * 获取图片或滑动验证码
-         */
-//        function.checkCphYycs(postPointmentDTO,requestHeaderUtil);
+
+
+
+
+        postPointmentDTO.setSl(u.getFoodOfGrainNum());
+        postPointmentDTO.setPhone(u.getUserPhone());
+        postPointmentDTO.setYyr(u.getUserName());
+        postPointmentDTO.setYwlx("0");
+        postPointmentDTO.setCyrnm("");
+        postPointmentDTO.setTzdbh("");
+        postPointmentDTO.setCyr("");
+        postPointmentDTO.setCyrsfzh("");
+        postPointmentDTO.setQymc("");
+        postPointmentDTO.setXydm("");
+        postPointmentDTO.setWxdlFlag("true");
+        postPointmentDTO.setYyfsnm("1");
+        postPointmentDTO.setYyfsmc("预约挂号");
+        postPointmentDTO.setDevicetype("weixin");
+        postPointmentDTO.setZldd("");
+        postPointmentDTO.setCyrsjh("");
 
 
 

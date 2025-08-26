@@ -15,9 +15,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 public class HttpRequestUtil {
@@ -130,6 +135,11 @@ public class HttpRequestUtil {
         String fullUrl = baseUrl + urlPath;
         HttpRequest request = HttpRequest.post(fullUrl);
         String body=toFormString(formData);
+
+        JSONObject logJson = new JSONObject();
+        logJson.put("data", formData);
+        log.info("请求体: {}", logJson.toJSONString());
+        log.info("请求头[{}]", headers.getHeader());
         System.out.println("请求体"+body);
         if (MapUtil.isNotEmpty(formData)) {
             request.body(body);
@@ -182,9 +192,9 @@ public class HttpRequestUtil {
             if (sb.length() > 0) {
                 sb.append("&");
             }
-            sb.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8));
+            sb.append(entry.getKey());
             sb.append("=");
-            sb.append(URLEncoder.encode(String.valueOf(entry.getValue()), StandardCharsets.UTF_8));
+            sb.append(String.valueOf(entry.getValue()));
         }
         return sb.toString();
     }
@@ -204,9 +214,11 @@ public class HttpRequestUtil {
     private JSONObject executeRequest(HttpRequest request, RequestHeaderUtil headers) {
         // 应用请求头
         System.setProperty("sun.net.http.allowRestrictedHeaders", "true");
+        request.removeHeader("User-Agent");
         if (headers != null && headers.getHeader() != null) {
             request.addHeaders(headers.getHeader());
         }
+        log.info("<请求：：：：：：>: {}", request.toString());
 
         // --- 修改：在执行前设置超时 ---
         request.setConnectionTimeout(2000); // 设置连接超时
@@ -268,4 +280,151 @@ public class HttpRequestUtil {
             }
         }
     }
+    // =================================================================
+    // ====================== 新增的原生HTTP请求方法 =====================
+    // =================================================================
+
+    /**
+     * 使用 Java 原生 HttpURLConnection 发送 POST 表单请求。
+     * 此方法不依赖 Hutool 的 HTTP 客户端，作为备选方案。
+     *
+     * @param urlPath   请求的相对路径
+     * @param headers   请求头对象
+     * @param formData  表单数据
+     * @return 包含状态和数据的JSONObject，结构与 executeRequest 类似
+     */
+    public JSONObject postFormNative(String urlPath, RequestHeaderUtil headers, Map<String, Object> formData) {
+        String fullUrl = baseUrl + urlPath;
+        HttpURLConnection conn = null;
+        try {
+            log.info("原生HTTP请求 to URL: [{}], Method: [POST]", fullUrl);
+
+            // 1. 准备表单数据
+            String formString = toUrlEncodedString(formData);
+            byte[] formBytes = formString.getBytes(StandardCharsets.UTF_8);
+
+            // 2. 创建连接
+            URL url = new URL(fullUrl);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(3000); // 连接超时
+            conn.setReadTimeout(5000);    // 读取超时
+            conn.setDoOutput(true);       // 允许写入请求体
+
+            // 3. 设置请求头
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            conn.setRequestProperty("Content-Length", String.valueOf(formBytes.length));
+            if (headers != null && headers.getHeader() != null) {
+                headers.getHeader().forEach(conn::setRequestProperty);
+            }
+            System.setProperty("sun.net.http.allowRestrictedHeaders", "true");
+
+
+            // 4. 发送请求体
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(formBytes);
+            }
+
+            // 5. 获取响应
+            int httpStatus = conn.getResponseCode();
+            JSONObject resultJson;
+
+            if (httpStatus >= 200 && httpStatus < 300) { // 请求成功
+                // 处理Cookie
+                Map<String, List<String>> headerFields = conn.getHeaderFields();
+                List<String> cookies = headerFields.get("Set-Cookie");
+                if (cookies != null && !cookies.isEmpty()) {
+                    headers.setCookie((HttpResponse) cookies);
+                    set(headers);
+                }
+
+                String body = readStream(conn.getInputStream());
+                log.info("原生请求成功 to [{}], HTTP 状态码: {}, Response Body Length: {} ,Body: {}", fullUrl, httpStatus, body.length(), StrUtil.brief(body, 10000));
+
+                try {
+                    resultJson = JSONObject.parseObject(body);
+                    if (resultJson == null) {
+                        resultJson = new JSONObject();
+                    }
+                    resultJson.put("status", 200);
+                } catch (JSONException e) {
+                    log.warn("原生请求响应体 body from [{}] 不是一个有效的JSON. Body: {}", fullUrl, StrUtil.brief(body, 100));
+                    resultJson = new JSONObject();
+                    resultJson.put("rawBody", body);
+                    resultJson.put("status", 401);
+                }
+                resultJson.put("httpStatus", httpStatus);
+                return resultJson;
+            } else { // 请求失败
+                String errorBody = readStream(conn.getErrorStream());
+                log.error("原生请求失败 to [{}], HTTP Status: {}, Body: {}", fullUrl, httpStatus, errorBody);
+                JSONObject errorJson = new JSONObject();
+                errorJson.put("status", 400);
+                errorJson.put("httpStatus", httpStatus);
+                errorJson.put("errorBody", errorBody);
+                return errorJson;
+            }
+
+        } catch (Exception e) {
+            log.error("原生请求网络异常 to [{}]: {}", fullUrl, e.getMessage(), e);
+            JSONObject exceptionJson = new JSONObject();
+            exceptionJson.put("status", 500);
+            exceptionJson.put("httpStatus", 500);
+            exceptionJson.put("errorMessage", e.getMessage());
+            return exceptionJson;
+        } finally {
+            log.info("原生请求结束.");
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+    }
+
+    /**
+     * 读取输入流并转换为字符串
+     */
+    private String readStream(InputStream inputStream) {
+        if (inputStream == null) {
+            return "";
+        }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            return reader.lines().collect(Collectors.joining(System.lineSeparator()));
+        } catch (Exception e) {
+            log.error("读取输入流时出错: {}", e.getMessage());
+            return "";
+        }
+    }
+
+
+    /**
+     * 将Map格式的表单数据转换为 x-www-form-urlencoded 格式的字符串
+     *
+     * @param formData 表单数据
+     * @return URL编码后的字符串
+     */
+    private String toUrlEncodedString(Map<String, Object> formData) {
+        if (MapUtil.isEmpty(formData)) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        try {
+            for (Map.Entry<String, Object> entry : formData.entrySet()) {
+                if (sb.length() > 0) {
+                    sb.append("&");
+                }
+                sb.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8.name()));
+                sb.append("=");
+                Object value = entry.getValue();
+                if (value != null) {
+                    sb.append(URLEncoder.encode(String.valueOf(value), StandardCharsets.UTF_8.name()));
+                }
+            }
+        } catch (UnsupportedEncodingException e) {
+            // 这在现代JVM中基本不可能发生，因为UTF-8是标准字符集
+            log.error("严重错误：系统不支持UTF-8编码", e);
+            throw new RuntimeException("UTF-8 encoding not supported", e);
+        }
+        return sb.toString();
+    }
+
 }

@@ -27,6 +27,7 @@ public class RequestHeaderUtil {
     private String Referer;
     private String cookie;
     private String mobileDeviceId;
+    private String longJSESSIONID;
     /**
      * userSmsWebSocket.getUserCookie():
      * {
@@ -48,9 +49,10 @@ public class RequestHeaderUtil {
             // 3. 从 JSONObject 中提取数据并赋值给成员变量
             // 使用 optString 方法更安全，如果 key 不存在，会返回空字符串""而不是抛出异常
             this.JSESSIONID = jsonObject.getString("JSESSIONID");
+            this.longJSESSIONID = jsonObject.getString("longJSESSIONID");
             this.ss_ctrl = jsonObject.getString("ss_ctrl");
             this.xxx = jsonObject.getString("xxx");
-            this.Referer = "Referer:"+jsonObject.getString("Referer");
+            this.Referer = jsonObject.getString("Referer");
             this.mobileDeviceId = jsonObject.getString("mobileDeviceId");
         } catch (Exception e) {
             // 记录日志或者处理异常，例如设置默认值
@@ -65,6 +67,14 @@ public class RequestHeaderUtil {
         // 4. 调用方法，拼接最终的 Cookie 字符串
         this.setCookie();
     }
+
+    public String getMobileDeviceId() {
+        if (mobileDeviceId != null && mobileDeviceId.contains("=")) {
+            return mobileDeviceId.substring(mobileDeviceId.indexOf("=") + 1);
+        }
+        return "";
+    }
+
     public Map<String, String> getHeader() {
         Map<String, String> map = new HashMap<>();
         map.put("Sec-Fetch-Site", "same-origin");
@@ -80,6 +90,7 @@ public class RequestHeaderUtil {
     }
     public void setCookie(HttpResponse response) {
         String[] cookies = new String[]{response.header("Set-Cookie")};
+        log.info("<setCookie>{}",cookies);
         if (cookies != null) {
             for (String cookie : cookies) {
                 if (cookie==null||cookie.isEmpty()){
@@ -107,6 +118,6 @@ public class RequestHeaderUtil {
         }
     }
     private void setCookie(){
-        this.cookie=""+JSESSIONID+ss_ctrl+xxx;
+        this.cookie=""+JSESSIONID+";"+ss_ctrl+";"+xxx;
     }
 }

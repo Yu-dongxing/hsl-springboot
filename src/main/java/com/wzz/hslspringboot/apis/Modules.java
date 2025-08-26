@@ -56,7 +56,7 @@ public class Modules {
         params.put("phone", userSmsWebSocket.getUserPhone());
         params.put("devicetype", "weixin");
         log.info("获取随机数提交数据：{}",params);
-        return util.postForm2("/slyyServlet/service/nhyy/getRandomCode",requestHeaderUtil,params);
+        return util.postForm("/slyyServlet/service/nhyy/getRandomCode",requestHeaderUtil,params);
     }
 
     /**
@@ -170,7 +170,8 @@ public class Modules {
      */
     public JSONObject postReserve(PostPointmentDTO postPointmentDTO, RequestHeaderUtil requestHeaderUtil) {
         Map<String, Object> params = BeanUtil.beanToMap(postPointmentDTO);
-        return util.postForm("/slyyServlet/service/nhyy/reserve", requestHeaderUtil, params);
+        log.info("<data>:{},<header>:{}",params,requestHeaderUtil);
+        return util.postForm2("/slyyServlet/service/nhyy/reserve", requestHeaderUtil, params);
     }
 
     /**
@@ -349,6 +350,48 @@ public class Modules {
         payload.put("data", data);
         // 将Map对象序列化为JSON字符串作为请求体
         return util.postJson("/slyyServlet/service/captcha/checkCaptcha", requestHeaderUtil, JSON.toJSONString(payload));
+    }
+
+
+    /**
+     * 上传数据
+     *
+     * @param data 业务数据部分的JSON对象
+     * @param hd   另一部分业务数据的JSON对象
+     * @param url  请求的目标URL地址
+     * @return 服务器响应的JSON对象，如果请求失败则返回null或一个包含错误信息的JSON对象
+     */
+    public JSONObject postData(JSONObject data, JSONObject hd, String url) {
+        JSONObject requestPayload = new JSONObject();
+        requestPayload.put("data", data);
+        requestPayload.put("hd", hd);
+        String requestBody = requestPayload.toJSONString();
+        try {
+            HttpResponse response = HttpRequest.post(url)
+                    .body(requestBody, "application/json;charset=UTF-8")
+                    .timeout(2000)
+                    .execute();
+            if (response.isOk()) {
+                String responseBody = response.body();
+                return JSON.parseObject(responseBody);
+            } else {
+                System.err.println("请求失败，状态码: " + response.getStatus());
+                System.err.println("响应内容: " + response.body());
+                JSONObject errorResult = new JSONObject();
+                errorResult.put("success", false);
+                errorResult.put("statusCode", response.getStatus());
+                errorResult.put("message", "请求服务器失败");
+                errorResult.put("details", response.body());
+                return errorResult;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            JSONObject exceptionResult = new JSONObject();
+            exceptionResult.put("success", false);
+            exceptionResult.put("message", "请求过程中发生异常");
+            exceptionResult.put("error", e.getMessage());
+            return exceptionResult;
+        }
     }
 
 

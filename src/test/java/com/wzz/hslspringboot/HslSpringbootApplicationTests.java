@@ -212,7 +212,6 @@ class HslSpringbootApplicationTests {
         /**
          * 获取随机数
          */
-        function.getRandomcode(postPointmentDTO, requestHeaderUtil,u);
 
 
 
@@ -244,16 +243,9 @@ class HslSpringbootApplicationTests {
             }
         }
 
+        function.getRandomcode(postPointmentDTO, requestHeaderUtil,u);
 
-        /**
-         * 检查车牌号
-         */
-        JSONObject se = function.checkCphYycs(postPointmentDTO,requestHeaderUtil);
-        log.info("<检查车牌号>{}",se);
-
-
-
-
+        Thread.sleep(20000);
 
         postPointmentDTO.setSl(u.getFoodOfGrainNum());
         postPointmentDTO.setPhone(u.getUserPhone());
@@ -272,9 +264,6 @@ class HslSpringbootApplicationTests {
         postPointmentDTO.setZldd("");
         postPointmentDTO.setCyrsjh("");
 
-
-
-
         String e = encryptionUtil.rsa(postPointmentDTO);
         postPointmentDTO.setSecretData(e);
         try {
@@ -288,4 +277,5 @@ class HslSpringbootApplicationTests {
         }
         log.info("提交：{}",function.postInfo(requestHeaderUtil,postPointmentDTO));
     }
+
 }

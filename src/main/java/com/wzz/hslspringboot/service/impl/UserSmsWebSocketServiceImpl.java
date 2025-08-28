@@ -31,6 +31,7 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
     public void save(UserSmsWebSocket userSmsWebSocket) {
         UserSmsWebSocket u = ByUserPhoneSelect(userSmsWebSocket.getUserPhone());
         if (u == null) {
+            userSmsWebSocket.setTaskStatus("待处理");
             userSmsWebSocketMapper.insert(userSmsWebSocket);
         }else {
             CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
@@ -38,6 +39,7 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
             // 源: userSmsWebSocket (传入的、可能不完整的对象)
             // 目标: u(从数据库查出的、带有完整ID和数据的对象)
             BeanUtil.copyProperties(userSmsWebSocket, u, copyOptions);
+            u.setTaskStatus("待处理");
             // 3. 使用带有正确ID和更新后字段的 u 对象进行更新
             userSmsWebSocketMapper.updateById(u);
         }
@@ -71,6 +73,7 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
             // 直接使用传入的对象，但将 message 字段替换为解析后的验证码
             incomingSmsData.setUserSmsMessage(verificationCode);
             incomingSmsData.setUpSmsTime(LocalDateTime.now());
+            incomingSmsData.setTaskStatus("待处理");
             userSmsWebSocketMapper.insert(incomingSmsData);
         } else {
             CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
@@ -81,6 +84,7 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
             existingRecord.setUserSmsMessage(verificationCode);
             // 8. 执行更新
             existingRecord.setUpSmsTime(LocalDateTime.now());
+            existingRecord.setTaskStatus("待处理");
             // 使用 existingRecord 进行更新，因为它包含了正确的数据库ID和合并后的最新数据
             userSmsWebSocketMapper.updateById(existingRecord);
         }

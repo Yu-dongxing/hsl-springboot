@@ -64,7 +64,7 @@ public class Modules {
      */
     public JSONObject getGrxxStatus (UserSmsWebSocket userSmsWebSocket, RequestHeaderUtil requestHeaderUtil,PostPointmentDTO postPointmentDTO){
         Map<String, Object> params = new HashMap<>();
-        params.put("userId", postPointmentDTO.getTjr());
+        params.put("userId", postPointmentDTO.getPhone());
         params.put("zznm",postPointmentDTO.getZznm());
         params.put("deviceType", "weixin");
         return util.postForm("/slyyServlet/service/grxx/getGrxxStatus",requestHeaderUtil,params);
@@ -171,7 +171,7 @@ public class Modules {
     public JSONObject postReserve(PostPointmentDTO postPointmentDTO, RequestHeaderUtil requestHeaderUtil) {
         Map<String, Object> params = BeanUtil.beanToMap(postPointmentDTO);
         log.info("<data>:{},<header>:{}",params,requestHeaderUtil);
-        return util.postForm2("/slyyServlet/service/nhyy/reserve", requestHeaderUtil, params);
+        return util.postForm("/slyyServlet/service/nhyy/reserve", requestHeaderUtil, params);
     }
 
     /**

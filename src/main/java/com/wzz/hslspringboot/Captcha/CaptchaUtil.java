@@ -5,6 +5,8 @@ import com.alibaba.fastjson.JSONObject;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -65,11 +67,18 @@ public class CaptchaUtil {
 //
         captchaData.setTrackList(jsonArray);
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime last = now.minusSeconds(t/1000);
-        String nowStr = now.toString();
-        String lastStr = last.toString();
-        nowStr = nowStr.substring(0, nowStr.length() - 6)+"Z";
-        lastStr = lastStr.substring(0, lastStr.length() - 6)+"Z";
+        LocalDateTime last = now.minusSeconds(t / 1000);
+
+// 转成 OffsetDateTime（带时区信息）
+        OffsetDateTime nowUtc = now.atOffset(ZoneOffset.UTC);
+        OffsetDateTime lastUtc = last.atOffset(ZoneOffset.UTC);
+
+// 使用 ISO 格式化
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+
+        String nowStr = nowUtc.format(formatter);
+        String lastStr = lastUtc.format(formatter);
+
         captchaData.setStartTime(lastStr);
         captchaData.setStopTime(nowStr);
     }

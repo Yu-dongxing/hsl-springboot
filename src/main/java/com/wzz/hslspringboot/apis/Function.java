@@ -192,7 +192,7 @@ public class Function {
         CaptchaData ew = new CaptchaData(rrrr);
         new Captcha(ew);
         if (ew.getStatus() == 200) {
-            Thread.sleep(5000);
+            //Thread.sleep(5000);
             JSONObject qqqq = ew.getJson();
             log.info("<获取图片或滑动验证码>:{}", qqqq.toString());
             JSONObject sa = checkCaptcha(requestHeaderUtil, qqqq.toString());

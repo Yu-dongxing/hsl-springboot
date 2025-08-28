@@ -62,6 +62,7 @@ public class UploadReservationInformation {
         }
 
         try {
+            user.setTaskStatus("待处理");
             // 2. 调用Service层的更新方法
             boolean isSuccess = userSmsWebSocketService.Update(user);
 

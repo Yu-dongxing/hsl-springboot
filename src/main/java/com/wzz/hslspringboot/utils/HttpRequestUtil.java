@@ -2,6 +2,7 @@ package com.wzz.hslspringboot.utils;
 
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.URLUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
@@ -165,6 +166,7 @@ public class HttpRequestUtil {
         if (StrUtil.isNotBlank(jsonBody)) {
             request.body(jsonBody);
             request.header("Content-Type", "application/json;charset=UTF-8");
+            request.addHeaders(headers.getHeader());
             // Hutool 会自动设置 Content-Type 为 application/json
         }
         log.info("发送POST JSON请求: [{}]", request.toString());
@@ -194,7 +196,12 @@ public class HttpRequestUtil {
             }
             sb.append(entry.getKey());
             sb.append("=");
-            sb.append(String.valueOf(entry.getValue()));
+            if (entry.getValue()!=null) {
+                sb.append(URLUtil.encode(entry.getValue().toString()));
+            }else {
+                sb.append("");
+            }
+
         }
         return sb.toString();
     }
@@ -218,7 +225,7 @@ public class HttpRequestUtil {
         if (headers != null && headers.getHeader() != null) {
             request.addHeaders(headers.getHeader());
         }
-        log.info("<请求：：：：：：>: {}", request.toString());
+        log.info("<请求：：：：：：>: 【{}】", request.toString());
 
         // --- 修改：在执行前设置超时 ---
         request.setConnectionTimeout(2000); // 设置连接超时

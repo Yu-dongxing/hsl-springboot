@@ -16,6 +16,7 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -26,5 +27,5 @@ import java.util.concurrent.TimeUnit;
 public interface AppointmentProcessorService {
 
 
-    JSONObject processAppointment(UserSmsWebSocket user);
+    JSONObject processAppointment(UserSmsWebSocket user) throws IOException, InterruptedException;
 }

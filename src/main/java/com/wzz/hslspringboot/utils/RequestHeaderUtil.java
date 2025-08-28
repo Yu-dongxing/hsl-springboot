@@ -27,7 +27,7 @@ public class RequestHeaderUtil {
     private String Referer;
     private String cookie;
     private String mobileDeviceId;
-    private String longJSESSIONID;
+    private String slyyServletJSESSIONID;
     /**
      * userSmsWebSocket.getUserCookie():
      * {
@@ -49,7 +49,7 @@ public class RequestHeaderUtil {
             // 3. 从 JSONObject 中提取数据并赋值给成员变量
             // 使用 optString 方法更安全，如果 key 不存在，会返回空字符串""而不是抛出异常
             this.JSESSIONID = jsonObject.getString("JSESSIONID");
-            this.longJSESSIONID = jsonObject.getString("longJSESSIONID");
+            this.slyyServletJSESSIONID = jsonObject.getString("slyyServletJSESSIONID");
             this.ss_ctrl = jsonObject.getString("ss_ctrl");
             this.xxx = jsonObject.getString("xxx");
             this.Referer = jsonObject.getString("Referer");
@@ -59,6 +59,7 @@ public class RequestHeaderUtil {
             System.err.println("解析用户Cookie JSON失败: " + e.getMessage());
             // 根据业务需求，可以选择在此处初始化变量为空字符串或null
             this.JSESSIONID = "";
+            this.slyyServletJSESSIONID ="";
             this.ss_ctrl = "";
             this.xxx = "";
             this.Referer = "";
@@ -98,13 +99,25 @@ public class RequestHeaderUtil {
                 }
                 String[] parts = cookie.split(";");
                 String mainPart = parts[0].trim();
+                String mainPath =parts[1].trim();
+                String[] nameValuePath = mainPath.split("=");
                 String[] nameValuePair = mainPart.split("=");
+                String Path =null;
+                String PathValue = null;
+                if (nameValuePath.length==2){
+                    Path = nameValuePath[0].trim();
+                    PathValue = nameValuePath[1].trim();
+                }
                 if (nameValuePair.length == 2) {
                     String key = nameValuePair[0].trim();
                     String value = nameValuePair[1].trim();
                     System.out.println("Cookie Key: " + key + ", Cookie Value: " + value);
                     if (StrUtil.isNotBlank(key) && StrUtil.isNotBlank(value)&& key.contains("JSESSIONID")) {
-                        this.setJSESSIONID(mainPart);
+                        if (Path!=null&&PathValue.contains("slyyServlet")) {
+                            this.setSlyyServletJSESSIONID(mainPart);
+                        }else {
+                            this.setJSESSIONID(mainPart);
+                        }
                     }
                     if (StrUtil.isNotBlank(key) && StrUtil.isNotBlank(value)&& key.contains("ss_ctrl")) {
                         this.setSs_ctrl(mainPart);
@@ -118,6 +131,7 @@ public class RequestHeaderUtil {
         }
     }
     private void setCookie(){
-        this.cookie=""+JSESSIONID+";"+ss_ctrl+";"+xxx;
+        this.cookie=slyyServletJSESSIONID+";"+xxx+";"+JSESSIONID+";"+ss_ctrl;
+        //this.cookie=JSESSIONID+";"+xxx+";"+ss_ctrl;
     }
 }

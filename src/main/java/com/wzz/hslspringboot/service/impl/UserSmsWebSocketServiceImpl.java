@@ -45,6 +45,23 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
         }
 
     }
+
+    /**
+     * 保存用户线上状态
+     * @param userSmsWebSocket
+     */
+    @Override
+    public void saveUserWsaocket(UserSmsWebSocket userSmsWebSocket) {
+        UserSmsWebSocket u = ByUserPhoneSelect(userSmsWebSocket.getUserPhone());
+        if (u == null) {
+            userSmsWebSocketMapper.insert(userSmsWebSocket);
+        }else {
+            CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
+            BeanUtil.copyProperties(userSmsWebSocket, u, copyOptions);
+            userSmsWebSocketMapper.updateById(u);
+        }
+
+    }
     /**
      * 保存或更新手机短信信息，此版本保留并优化了 BeanUtil.copyProperties 的使用。
      *
@@ -64,29 +81,23 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
         if (StringUtils.hasText(incomingSmsData.getUserSmsMessage())) {
             verificationCode = SmsParser.parseVerificationCode(incomingSmsData.getUserSmsMessage());
         }
-
-        // 4. 根据手机号查询数据库，判断是新增还是更新
         UserSmsWebSocket existingRecord = ByUserPhoneSelect(incomingSmsData.getUserPhone());
-
         if (existingRecord == null) {
-            // --- 记录不存在，执行插入操作 ---
-            // 直接使用传入的对象，但将 message 字段替换为解析后的验证码
             incomingSmsData.setUserSmsMessage(verificationCode);
             incomingSmsData.setUpSmsTime(LocalDateTime.now());
-//            incomingSmsData.setTaskStatus("待处理");
             userSmsWebSocketMapper.insert(incomingSmsData);
         } else {
-            CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
-            // 6. 执行拷贝：将传入对象(source)的非空属性，覆盖到从数据库查出的对象(target)上
-            BeanUtil.copyProperties(incomingSmsData, existingRecord, copyOptions);
-            // 7. 明确设置解析后的验证码
-            // 这一步是必须的，因为源对象中的 message 字段是原始短信，我们需要用解析结果覆盖它
-            existingRecord.setUserSmsMessage(verificationCode);
-            // 8. 执行更新
-            existingRecord.setUpSmsTime(LocalDateTime.now());
-//            existingRecord.setTaskStatus("待处理");
-            // 使用 existingRecord 进行更新，因为它包含了正确的数据库ID和合并后的最新数据
-            userSmsWebSocketMapper.updateById(existingRecord);
+            if(existingRecord.getUserSmsMessage().equals(verificationCode)) {
+                log.info("手机号 {} 的验证码 {} 已存在，无需更新。", existingRecord.getUserPhone(), verificationCode);
+            }else {
+                log.info("手机号 {} 的验证码发生变化，旧值: {}, 新值: {}，执行更新。", existingRecord.getUserPhone(), existingRecord.getUserSmsMessage(), verificationCode);
+                CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
+                BeanUtil.copyProperties(incomingSmsData, existingRecord, copyOptions);
+                existingRecord.setUserSmsMessage(verificationCode);
+                existingRecord.setUpSmsTime(LocalDateTime.now());
+                userSmsWebSocketMapper.updateById(existingRecord);
+            }
+
         }
     }
     /**
@@ -133,7 +144,9 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
     }
     /**
      * 根据设备ID查询
+     * <p>
      * 从UserSmsWebSocket中的cookie（json字符串格式）字段中根据传入的设备id查询符合字段mobileDeviceId的值的数据
+     *
      * @param deviceId 要查询的设备ID (例如: "os7mus9HY8oa5IQjlAevxA5YdUVM")
      * @return UserSmsWebSocket 实体对象，如果找不到则返回null
      */
@@ -142,18 +155,22 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
         // 1. 创建 LambdaQueryWrapper 对象
         LambdaQueryWrapper<UserSmsWebSocket> queryWrapper = new LambdaQueryWrapper<>();
 
-        // 2. 构建查询条件
-        // 从JSON中提取 'mobileDeviceId' 的值 (例如: "mobileDeviceId=os7mus9HY8oa5IQjlAevxA5YdUVM")
-        // 然后和 'mobileDeviceId=' + 传入的deviceId 拼接后的字符串进行比较
+        // 2. 构建查询条件 - 优先使用精确匹配
+        // 通常根据设备ID查询是精确查找，性能更好，也更符合业务逻辑
         queryWrapper.apply(
-                "JSON_UNQUOTE(JSON_EXTRACT(user_cookie, '$.mobileDeviceId')) LIKE {0}",
-                "%"+deviceId + "%" // 注意这里，通常模糊匹配是 deviceId% 或者 %deviceId%
+                "JSON_UNQUOTE(JSON_EXTRACT(user_cookie, '$.mobileDeviceId')) = {0}",
+                deviceId
         );
 
-        // 3. 执行查询
+        // 3. 在SQL语句末尾添加 "LIMIT 1"，确保数据库层面最多只返回一条记录
+        // 这是防止 `selectOne` 抛出 TooManyResultsException 的最佳实践
+        queryWrapper.last("LIMIT 1");
+
+        // 4. 执行查询
+        // 因为有 "LIMIT 1" 的保证，即使有多条数据满足条件，这里也绝对不会抛出异常
         UserSmsWebSocket userSmsWebSocket = userSmsWebSocketMapper.selectOne(queryWrapper);
 
-        // 4. 返回结果
+        // 5. 返回结果
         return userSmsWebSocket;
     }
     /**

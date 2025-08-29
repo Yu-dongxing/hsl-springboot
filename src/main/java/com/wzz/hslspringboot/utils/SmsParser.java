@@ -12,41 +12,45 @@ public class SmsParser {
 
     /**
      * 从指定短信内容中解析出验证码。
-     * 要求短信必须由"中储粮惠三农"发出，并包含特定格式的6位数字验证码。
-     *
-     * @param smsContent 短信的完整内容，例如："【中储粮惠三农】您的验证码是171220，仅用于本次操作。..."
-     * @return 如果签名匹配且成功解析出验证码，则返回6位数字验证码字符串；否则返回 null。
+     * <p>
+     * 1. 纯6位数字验证码字符串，例如："171220"
+     * 2. 由"中储粮惠三农"发出的标准短信，例如："【中储粮惠三农】您的验证码是171220，仅用于本次操作。..."
+     * @param smsContent 短信的完整内容或纯验证码
+     * @return 如果成功解析出验证码，则返回6位数字验证码字符串；否则返回 null。
      */
     public static String parseVerificationCode(String smsContent) {
-        // 1. 基本校验：检查输入是否为空
+        // 1. 基本校验：检查输入是否为空或仅有空白字符
         if (smsContent == null || smsContent.trim().isEmpty()) {
             log.info("输入短信内容为空。");
             return null;
         }
-
-        // 2. 签名匹配：检查是否是指定发送方
+        // 对内容进行trim，方便后续处理
+        String trimmedContent = smsContent.trim();
+        // 2. 优先匹配纯6位数字格式
+        //    使用正则表达式 "^\\d{6}$" 来确保整个字符串不多不少，就是6个数字
+        Pattern directCodePattern = Pattern.compile("^\\d{6}$");
+        if (directCodePattern.matcher(trimmedContent).matches()) {
+            return trimmedContent;
+        }
+        // 3. 如果不是纯数字，则尝试解析标准短信格式
+        // 3.1 签名匹配：检查是否是指定发送方
         final String expectedSignature = "【中储粮惠三农】";
-        if (!smsContent.startsWith(expectedSignature)) {
-            log.info("短信签名不匹配，期望签名: " + expectedSignature);
+        if (!trimmedContent.startsWith(expectedSignature)) {
+            log.info("短信内容既不是纯6位数字，签名也不匹配，期望签名: " + expectedSignature);
             return null;
         }
+        // 3.2 验证码匹配：使用正则表达式提取短信内容中的第一个6位数字
+        //    正则表达式 "\\d{6}" 会匹配任意连续的6个数字。
+        //    这比原有的 "验证码是(\\d{6})" 更具健壮性，可以兼容 "验证码为:123456" 等不同说法。
+        Pattern embeddedCodePattern = Pattern.compile("(\\d{6})");
+        Matcher matcher = embeddedCodePattern.matcher(trimmedContent);
 
-        // 3. 验证码匹配：使用正则表达式提取验证码
-        // 正则表达式解析：
-        // "验证码是"  - 匹配文字 "验证码是"
-        // (\\d{6})   - 这是一个捕获组，用于提取我们想要的内容
-        //   \\d     - 匹配任意一个数字 (0-9)
-        //   {6}     - 表示前面的 \\d 必须连续出现6次
-        Pattern pattern = Pattern.compile("验证码是(\\d{6})");
-        Matcher matcher = pattern.matcher(smsContent);
-
-        // 4. 提取并返回结果
+        // 3.3 提取并返回结果
         if (matcher.find()) {
-            // matcher.group(0) 会返回整个匹配到的字符串，即 "验证码是171220"
-            // matcher.group(1) 会返回第一个捕获组的内容，即 "171220"
+            // matcher.group(1) 会返回第一个捕获组的内容，即第一个匹配到的6位数字 "171220"
             return matcher.group(1);
         } else {
-            log.info("在短信内容中未找到格式为 '验证码是' + 6位数字 的验证码。");
+            log.info("在带签名的短信内容中未找到6位数字验证码。");
             return null;
         }
     }
@@ -85,10 +89,9 @@ public class SmsParser {
         System.out.println("解析结果: " + code4); // 期望输出: null
         System.out.println("--------------------");
 
-        // 5. 输入为 null 或空字符串
-        System.out.println("测试5 (输入为null): ");
-        String code5 = parseVerificationCode(null);
-        System.out.println("解析结果: " + code5); // 期望输出: null
+        System.out.println("123456");
+        String code5 = parseVerificationCode("123456");
+        System.out.println("解析结果: " + code5);
         System.out.println("--------------------");
     }
 }

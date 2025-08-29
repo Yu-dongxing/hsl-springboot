@@ -120,11 +120,9 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         } catch (InterruptedException e) {
             log.warn("用户【{}】的预约任务在等待过程中被中断。", user.getUserName());
             Thread.currentThread().interrupt();
-//            return null;
             throw e;
         } catch (Exception e) {
             log.error("为用户【{}】执行预约流程时发生未预期的异常: ", user.getUserName(), e);
-//            return null;
             throw e;
         }
     }
@@ -183,10 +181,6 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
     private JSONObject searchAndSetDepotInfo(UserSmsWebSocket user, RequestHeaderUtil headers, PostPointmentDTO dto) {
         log.info("步骤 3/{}: 搜索预约库点信息...", TOTAL_STEPS);
         JSONObject response = function.search(user, headers);
-//        if (response == null || response.getJSONArray("data").isEmpty()) {
-//            log.error("用户【{}】搜索预约库点信息失败或未找到可用库点: {}", user.getUserName(), response);
-//            return null;
-//        }
         JSONObject depotData = response.getJSONArray("data").getJSONObject(0);
         dto.setZzmc(depotData.getString("zzmc"));
         dto.setZznm(depotData.getString("zznm"));
@@ -272,6 +266,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
                 if (duration.getSeconds() <= 30) {
                     dto.setDxyzm(latestUser.getUserSmsMessage());
                     log.info("用户【{}】成功获取到有效期内的验证码: {}", user.getUserName(), latestUser.getUserSmsMessage());
+                    break;
                 } else {
                     dto.setDxyzm("");
                     log.warn("用户【{}】的验证码已超过30秒有效期，将不使用该验证码。", user.getUserName());

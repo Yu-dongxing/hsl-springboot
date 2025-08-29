@@ -19,6 +19,8 @@ public interface UserSmsWebSocketService {
 
     void save(UserSmsWebSocket userSmsWebSocket);
 
+    void saveUserWsaocket(UserSmsWebSocket userSmsWebSocket);
+
     @Transactional // 1. 添加事务注解，保证操作的原子性
     void saveOrUpdateSmsInfoWithBeanUtil(UserSmsWebSocket incomingSmsData);
 

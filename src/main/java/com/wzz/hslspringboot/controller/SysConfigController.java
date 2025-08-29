@@ -48,9 +48,9 @@ public class SysConfigController {
 
     /**
      * 更新配置
-     * PUT /api/sys/config
+     * PUT /api/sys/config/update
      */
-    @PutMapping
+    @PostMapping("/update")
     public Result<?> updateConfig(@RequestBody NewSysConfig newSysConfig) {
         if (newSysConfig.getId() == null) {
             return Result.error("更新时ID不能为空");

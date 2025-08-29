@@ -31,7 +31,7 @@ public class WsHandler extends TextWebSocketHandler {
     // 依然使用 userPhone 作为 Key 来管理 WebSocket 会话
     private static final Map<String, WebSocketSession> userSessionMap = new ConcurrentHashMap<>();
     // 依然将会话属性的 Key 定义为常量，便于在连接关闭时获取
-    private static final String USER_PHONE_KEY = "userPhone";
+    private static final String USER_PHONE_KEY = "user";
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -75,7 +75,7 @@ public class WsHandler extends TextWebSocketHandler {
                  UserSmsWebSocket userSms = new UserSmsWebSocket();
                  userSms.setUserPhone(userPhone);
                  userSms.setStatus(true);
-                 userSmsWebSocketService.save(userSms); // 示例
+                 userSmsWebSocketService.saveUserWsaocket(userSms); // 示例
                 log.info("用户 {} 首次通信，已自动注册并绑定会话: {}", userPhone, session.getId());
             }
 
@@ -117,7 +117,7 @@ public class WsHandler extends TextWebSocketHandler {
                 userSms.setStatus(false);
 
                 log.info("准备为用户 {} 更新数据库状态为离线...", userPhone);
-                userSmsWebSocketService.save(userSms); // 更新用户为离线状态
+                userSmsWebSocketService.saveUserWsaocket(userSms); // 更新用户为离线状态
                 log.info("成功更新用户 {} 的数据库状态为离线。", userPhone);
                 log.info("用户 {} 的WebSocket连接已断开, SessionId: {}", userPhone, session.getId());
 

@@ -179,7 +179,7 @@ public class PostYyTask {
 
                 // 3. 检查业务返回码，判断是否成功
                 JSONObject data = o.getJSONObject("data");
-                if (data != null && data.getInteger("retCode") == 0) {
+                if (data != null && data.getInteger("retCode") == 1) {
                     // 业务成功
                     log.info("用户ID: {} 的预约任务执行成功。", user.getId());
                     userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_SUCCESS, "预约流程执行成功。");
@@ -193,8 +193,6 @@ public class PostYyTask {
 
             } catch (Exception e) {
                 log.error("用户ID: {} 的预约任务第 {}/{} 次尝试失败。错误: {}", user.getId(), attempt, maxRetries, e.getMessage());
-
-
                 if (attempt < maxRetries) {
                     // 如果还未达到最大重试次数，更新状态并准备下一次重试
                     String retryMessage = String.format("执行失败，准备第 %d/%d 次重试: %s", attempt + 1, maxRetries, e.getMessage());

@@ -7,7 +7,6 @@ import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
 import com.wzz.hslspringboot.service.AppointmentProcessorService;
 import com.wzz.hslspringboot.service.SysConfigService;
 import com.wzz.hslspringboot.service.UserSmsWebSocketService;
-import com.wzz.hslspringboot.utils.DataConverterUtil;
 import com.wzz.hslspringboot.utils.DateTimeUtil;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -42,9 +41,12 @@ public class PostYyTask {
     private static final String STATUS_INVALID_TIME = "时间格式无效";
 
     // --- 新增：重试次数相关常量 ---
-    private static final String MAX_RETRY_CONFIG_KEY = "max_retry_count";
+    private static final String MAX_RETRY_CONFIG_KEY = "maximum_number_of_retries";
     private static final int DEFAULT_MAX_RETRIES = 3; // 默认最大重试次数
+    private static final String RETRY_INTERVAL_KEY = "Retry_interval";
     private static final long RETRY_INTERVAL_MS = 2000; // 重试间隔时间（毫秒）
+    private static final int RETRY_INTERVAL_S = 2; // 重试间隔时间（秒）
+
 
     @Autowired
     private UserSmsWebSocketService userSmsWebSocketService;
@@ -77,10 +79,10 @@ public class PostYyTask {
      */
     @Scheduled(fixedRate = 1000)
     public void scheduleNewAppointments() {
-        log.info("<每秒执行一次>");
+        log.info("扫描数据库中“待处理”的任务并进行调度");
         // 1. 从数据库查询所有状态为“待处理”的任务
         List<UserSmsWebSocket> pendingTasks = userSmsWebSocketService.getAll(STATUS_PENDING);
-        log.info("<<UNK>>::{}",pendingTasks);
+//        log.info("<<UNK>>::{}",pendingTasks);
 
         if (pendingTasks.isEmpty()) {
             return;
@@ -92,22 +94,33 @@ public class PostYyTask {
 
         // 解析需要提前的秒数 (yzm_time_s)
         int yzmTimeS = parseConfigInt(configValue, "yzm_time_s", 0);
-        log.info("系统配置：任务将提前 {} 秒执行。", yzmTimeS);
+//        log.info("系统配置：任务将提前 {} 秒执行。", yzmTimeS);
 
         // --- 新增：解析最大重试次数 ---
         int maxRetries = parseConfigInt(configValue, MAX_RETRY_CONFIG_KEY, DEFAULT_MAX_RETRIES);
-        log.info("系统配置：任务最大重试次数为 {}。", maxRetries);
+//        log.info("系统配置：任务最大重试次数为 {}。", maxRetries);
+
+        // --- 新增：解析重试间隔时间 ---
+        int retriesTime = parseConfigInt(configValue, RETRY_INTERVAL_KEY, RETRY_INTERVAL_S);
+//        log.info("系统配置：任务重试间隔时间为 {}秒。", retriesTime);
+
 
         for (UserSmsWebSocket user : pendingTasks) {
+            if (user.getAppointmentTime()==null || user.getAppointmentTime().isEmpty()){
+
+                continue;
+            }
             // 2. 检查任务是否已经被调度，如果已在处理中，则跳过
             if (scheduledTasks.containsKey(user.getId())) {
                 continue;
             }
 
+
             // 3. 解析预约时间
             LocalDateTime appointmentDateTime;
             try {
-                appointmentDateTime = LocalDateTime.parse(user.getAppointmentTime(), APPOINTMENT_TIME_FORMATTER);
+                 appointmentDateTime =  DateTimeUtil.parseDateTime(user.getAppointmentTime());
+//                appointmentDateTime = LocalDateTime.parse(user.getAppointmentTime(), APPOINTMENT_TIME_FORMATTER);
             } catch (DateTimeParseException e) {
                 log.error("用户ID: {} 的预约时间'{}'格式无效，请使用'yyyy-MM-dd HH:mm:ss'格式。", user.getId(), user.getAppointmentTime());
                 userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_INVALID_TIME, "预约时间格式错误: " + e.getMessage());
@@ -127,7 +140,8 @@ public class PostYyTask {
             try {
                 // 使用 final 变量以便在 lambda 中使用
                 final int effectiveMaxRetries = maxRetries;
-                Future<?> future = scheduler.schedule(() -> executeAppointmentWithRetries(user, effectiveMaxRetries), delayMillis, TimeUnit.MILLISECONDS);
+                final int effectiveRetriesTime = retriesTime;
+                Future<?> future = scheduler.schedule(() -> executeAppointmentWithRetries(user, effectiveMaxRetries,effectiveRetriesTime), delayMillis, TimeUnit.MILLISECONDS);
 
                 // 6. 将任务放入跟踪Map，并更新数据库状态为“已调度”
                 scheduledTasks.put(user.getId(), future);
@@ -144,10 +158,12 @@ public class PostYyTask {
     /**
      * 封装了核心业务逻辑的执行和有限重试机制。
      *
-     * @param user 用户及预约信息
-     * @param maxRetries 最大重试次数
+     * @param user                 用户及预约信息
+     * @param maxRetries           最大重试次数
+     * @param effectiveRetriesTime
      */
-    private void executeAppointmentWithRetries(UserSmsWebSocket user, int maxRetries) {
+    private void executeAppointmentWithRetries(UserSmsWebSocket user, int maxRetries, int effectiveRetriesTime) {
+
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 // 1. 更新状态为“执行中”
@@ -178,13 +194,16 @@ public class PostYyTask {
             } catch (Exception e) {
                 log.error("用户ID: {} 的预约任务第 {}/{} 次尝试失败。错误: {}", user.getId(), attempt, maxRetries, e.getMessage());
 
+
                 if (attempt < maxRetries) {
                     // 如果还未达到最大重试次数，更新状态并准备下一次重试
                     String retryMessage = String.format("执行失败，准备第 %d/%d 次重试: %s", attempt + 1, maxRetries, e.getMessage());
                     userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_FAILED, retryMessage);
                     try {
+
                         // 在重试前短暂休眠，避免因服务瞬间不可用导致CPU空转
-                        Thread.sleep(RETRY_INTERVAL_MS);
+//                        Thread.sleep(RETRY_INTERVAL_MS);
+                        Thread.sleep(effectiveRetriesTime * 1000L);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt(); // 恢复中断状态
                         log.error("重试等待时线程被中断，任务ID: {}，将停止重试。", user.getId());

@@ -60,43 +60,56 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
     public JSONObject processAppointment(UserSmsWebSocket user) throws IOException, InterruptedException {
         log.info("开始为用户【{}】执行完整的预约流程...", user.getUserName());
         try {
+            /**
+             * 初始化数据结构
+             */
             RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
             PostPointmentDTO dto = new PostPointmentDTO();
 
+            /**
+             * 查询用户信息
+             */
             if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto)) return null;
+            /**
+             * 查询车辆信息
+             */
             if (!fetchAndSetVehicleInfo(user, requestHeaderUtil, dto)) return null;
 
+            /**
+             * 搜索粮库信息
+             */
             JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
             if (depotData == null) return null;
 
+            /**
+             * 设置粮库信息
+             */
             if (!setGrainInfo(user, dto, depotData)) return null;
 
             performPreChecks(user, requestHeaderUtil, dto, depotData);
 
 
-            if (!handleSmsVerification(user, requestHeaderUtil, dto)) return null;
-
-            if (!fetchRandomCode(user, requestHeaderUtil, dto)) return null;
-
             NewSysConfig co = sysConfigService.getConfigByName("sys_config");
             int page_sleep_time_s_value = 10;
             if (co != null && co.getConfigValue() != null) {
-                // 推荐做法：假设 getConfigValue() 返回的是一个 Map<String, Object>
-                // 这是在现代JSON序列化框架(如Jackson/Gson)中常见的做法
                 try {
-                    // 直接从Map中获取值
                     Object page_sleep_time_value = co.getConfigValue().get("page_sleep_time_s");
                     if (page_sleep_time_value instanceof Number) {
                         page_sleep_time_s_value = ((Number) page_sleep_time_value).intValue();
                     }
                 } catch (Exception e) {
                     log.error("解析系统配置 'sys_config' 中的 page_sleep_time_s 失败，将使用默认值10。", e);
-                    // 在这里可以根据业务决定是否因为配置解析失败而中断流程
                 }
             }
 
+            long startTime = System.currentTimeMillis();  // 开始计时
+            if (!handleSmsVerification(user, requestHeaderUtil, dto)) return null;
+            long endTime = System.currentTimeMillis();  // 结束计时
             log.info("<等待{}秒：：>{}<UNK>...", page_sleep_time_s_value,user.getUserName());
-            Thread.sleep(page_sleep_time_s_value);
+            long aaa=page_sleep_time_s_value * 1000L-(endTime - startTime);
+            Thread.sleep(aaa);
+
+            if (!fetchRandomCode(user, requestHeaderUtil, dto)) return null;
 
             populateRemainingDtoFields(user, dto);
 
@@ -252,19 +265,22 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         }
 
         log.info("用户【{}】此次操作需要短信验证，正在检查本地验证码...", user.getUserName());
-        UserSmsWebSocket latestUser = userSmsWebSocketService.ByUserPhoneSelect(user.getUserPhone());
-        if (latestUser != null && latestUser.getUpSmsTime() != null && !StrUtil.isBlank(latestUser.getUserSmsMessage())) {
-            Duration duration = Duration.between(latestUser.getUpSmsTime(), LocalDateTime.now());
-            if (duration.getSeconds() <= 30) {
-                dto.setDxyzm(latestUser.getUserSmsMessage());
-                log.info("用户【{}】成功获取到有效期内的验证码: {}", user.getUserName(), latestUser.getUserSmsMessage());
+        for (int i = 0; i < 30; i++) {
+            UserSmsWebSocket latestUser = userSmsWebSocketService.ByUserPhoneSelect(user.getUserPhone());
+            if (latestUser != null && latestUser.getUpSmsTime() != null && !StrUtil.isBlank(latestUser.getUserSmsMessage())) {
+                Duration duration = Duration.between(latestUser.getUpSmsTime(), LocalDateTime.now());
+                if (duration.getSeconds() <= 30) {
+                    dto.setDxyzm(latestUser.getUserSmsMessage());
+                    log.info("用户【{}】成功获取到有效期内的验证码: {}", user.getUserName(), latestUser.getUserSmsMessage());
+                } else {
+                    dto.setDxyzm("");
+                    log.warn("用户【{}】的验证码已超过30秒有效期，将不使用该验证码。", user.getUserName());
+                }
             } else {
                 dto.setDxyzm("");
-                log.warn("用户【{}】的验证码已超过30秒有效期，将不使用该验证码。", user.getUserName());
+                log.warn("用户【{}】需要验证码，但数据库中未找到有效验证码或时间戳。", user.getUserName());
             }
-        } else {
-            dto.setDxyzm("");
-            log.warn("用户【{}】需要验证码，但数据库中未找到有效验证码或时间戳。", user.getUserName());
+            Thread.sleep(1000);
         }
         return true;
     }

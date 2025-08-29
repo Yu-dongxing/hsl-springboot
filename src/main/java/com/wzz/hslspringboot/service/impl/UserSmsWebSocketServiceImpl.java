@@ -73,7 +73,7 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
             // 直接使用传入的对象，但将 message 字段替换为解析后的验证码
             incomingSmsData.setUserSmsMessage(verificationCode);
             incomingSmsData.setUpSmsTime(LocalDateTime.now());
-            incomingSmsData.setTaskStatus("待处理");
+//            incomingSmsData.setTaskStatus("待处理");
             userSmsWebSocketMapper.insert(incomingSmsData);
         } else {
             CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
@@ -84,7 +84,7 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
             existingRecord.setUserSmsMessage(verificationCode);
             // 8. 执行更新
             existingRecord.setUpSmsTime(LocalDateTime.now());
-            existingRecord.setTaskStatus("待处理");
+//            existingRecord.setTaskStatus("待处理");
             // 使用 existingRecord 进行更新，因为它包含了正确的数据库ID和合并后的最新数据
             userSmsWebSocketMapper.updateById(existingRecord);
         }

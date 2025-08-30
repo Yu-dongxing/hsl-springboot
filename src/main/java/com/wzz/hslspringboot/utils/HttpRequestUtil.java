@@ -139,12 +139,8 @@ public class HttpRequestUtil {
         String fullUrl = baseUrl + urlPath;
         HttpRequest request = HttpRequest.post(fullUrl);
         String body=toFormString(formData);
-
         JSONObject logJson = new JSONObject();
         logJson.put("data", formData);
-        log.info("请求体: {}", logJson.toJSONString());
-        log.info("请求头[{}]", headers.getHeader());
-        System.out.println("请求体"+body);
         if (MapUtil.isNotEmpty(formData)) {
             request.body(body);
             request.header("Content-Type", "application/x-www-form-urlencoded");
@@ -355,10 +351,6 @@ public class HttpRequestUtil {
             }
         }
     }
-
-    /**
-     * 读取输入流并转换为字符串
-     */
     private String readStream(InputStream inputStream) {
         if (inputStream == null) {
             return "";

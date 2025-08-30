@@ -33,38 +33,17 @@ import java.time.LocalDateTime;
 @SpringBootTest
 class HslSpringbootApplicationTests {
     private static final Logger log = LogManager.getLogger(HslSpringbootApplicationTests.class);
-
-//    EncryptionUtil encryptionUtil = new EncryptionUtil();
-
-//    Function function = new Function();
-
     @Autowired
     private Function function;
-
-
     @Autowired
     private AppointmentProcessorService appointmentProcessorService;
-
     @Autowired
     private UserSmsWebSocketService userSmsWebSocketService;
-
     EncryptionUtil encryptionUtil = new EncryptionUtil();
-
     @Test
     void contextLoads() throws InterruptedException, IOException {
-
-
-        /**
-         * 用户id
-         */
         String userNm = "";
-        /**
-         * 用户类型
-         */
         String userType = "";
-        /**
-         * 用户车牌号类型
-         */
         String cphlx = "";
 
         PostPointmentDTO postPointmentDTO = new PostPointmentDTO();

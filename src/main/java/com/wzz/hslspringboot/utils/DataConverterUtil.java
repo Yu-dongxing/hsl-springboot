@@ -93,8 +93,6 @@ public class DataConverterUtil {
                 targetItem.set("jssj", sourceItem.getStr("jssj"));
                 targetItem.set("kssj", sourceItem.getStr("kssj"));
                 targetItem.set("outTime", sourceItem.getBool("outTime"));
-
-                // TODO: 以下字段在示例中值不同，需要确认业务转换规则
                 // 暂时先从源数据映射
                 targetItem.set("fhjssj", sourceItem.getStr("fhjssj"));
                 targetItem.set("fhkssj", sourceItem.getStr("fhkssj"));

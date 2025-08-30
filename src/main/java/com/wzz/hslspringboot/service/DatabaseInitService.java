@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.wzz.hslspringboot.annotation.ColumnType;
 import com.wzz.hslspringboot.annotation.DefaultValue; // ▼▼▼ 新增导入 ▼▼▼
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
@@ -25,6 +27,7 @@ import java.util.Map;
 
 @Service
 public class DatabaseInitService {
+    private static final Logger log = LogManager.getLogger(DatabaseInitService.class);
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -114,9 +117,9 @@ public class DatabaseInitService {
 
             createTableSQL.append(String.join(", ", fieldDefinitions)).append(");");
             jdbcTemplate.execute(createTableSQL.toString());
-            System.out.println("Created table " + tableName);
+            log.info("Created table {}", tableName);
         } catch (Exception e) {
-            System.err.println("Error creating table " + tableName + ": " + e.getMessage());
+            log.error("Error creating table {}: {}", tableName, e.getMessage());
             throw e;
         }
     }

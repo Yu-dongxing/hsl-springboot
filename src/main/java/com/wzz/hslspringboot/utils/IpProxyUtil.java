@@ -21,12 +21,8 @@ public class IpProxyUtil {
     @Autowired
     private SysConfigService sysConfigService;
 
-    // 注入RestTemplate，这是Spring推荐的HTTP客户端
     @Autowired
     private RestTemplate restTemplate;
-    /**
-     * 查询ip代理配置是否启用
-     */
     public Boolean isProxy(){
         NewSysConfig co = sysConfigService.getConfigByName("sys_config");
         Map<String, Object> configValue = (co != null) ? co.getConfigValue() : null;
@@ -34,17 +30,6 @@ public class IpProxyUtil {
         log.info("<UNK>IP是否配置<UNK>"+value);
         return Boolean.valueOf(value.toString());
     }
-    /**
-     * 获取一个代理的详细信息
-     * 请求 http://127.0.0.1:8585/get
-     * 该接口返回数据为
-     * {
-     *   "ip": "218.95.39.66",
-     *   "latency_ms": 369.92,
-     *   "port": 14100
-     * }
-     * @return 返回包含代理信息的 Map，如 {"ip":"218.95.39.66", "port":14100, ...}，获取失败则返回 null
-     */
     public Map<String, Object> getProxyAsMap() {
         final String apiUrl = "http://127.0.0.1:8585/get";
         log.info("开始请求IP代理接口: " + apiUrl);

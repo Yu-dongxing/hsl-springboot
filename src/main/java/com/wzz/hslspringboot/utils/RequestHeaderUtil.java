@@ -40,24 +40,17 @@ public class RequestHeaderUtil {
      * @param userSmsWebSocket
      */
     public RequestHeaderUtil(UserSmsWebSocket userSmsWebSocket) {
-        // 1. 获取 JSON 字符串
         String cookieJsonString = userSmsWebSocket.getUserCookie();
-        // 2. 解析 JSON 并赋值
         try {
-            // 创建 JSONObject 对象
             JSONObject jsonObject = JSONObject.parseObject(cookieJsonString);
-            // 3. 从 JSONObject 中提取数据并赋值给成员变量
-            // 使用 optString 方法更安全，如果 key 不存在，会返回空字符串""而不是抛出异常
             this.JSESSIONID = jsonObject.getString("JSESSIONID");
-            this.slyyServletJSESSIONID = jsonObject.getString("slyyServletJSESSIONID");
+            this.slyyServletJSESSIONID = jsonObject.getString("JSESSIONID");
             this.ss_ctrl = jsonObject.getString("ss_ctrl");
             this.xxx = jsonObject.getString("xxx");
             this.Referer = jsonObject.getString("Referer");
             this.mobileDeviceId = jsonObject.getString("mobileDeviceId");
         } catch (Exception e) {
-            // 记录日志或者处理异常，例如设置默认值
             System.err.println("解析用户Cookie JSON失败: " + e.getMessage());
-            // 根据业务需求，可以选择在此处初始化变量为空字符串或null
             this.JSESSIONID = "";
             this.slyyServletJSESSIONID ="";
             this.ss_ctrl = "";
@@ -65,7 +58,7 @@ public class RequestHeaderUtil {
             this.Referer = "";
             this.mobileDeviceId = "";
         }
-        // 4. 调用方法，拼接最终的 Cookie 字符串
+        // 4. 调用方法，拼接最终的无效字符串
         this.setCookie();
     }
 
@@ -132,6 +125,5 @@ public class RequestHeaderUtil {
     }
     private void setCookie(){
         this.cookie=slyyServletJSESSIONID+";"+xxx+";"+JSESSIONID+";"+ss_ctrl;
-        //this.cookie=JSESSIONID+";"+xxx+";"+ss_ctrl;
     }
 }

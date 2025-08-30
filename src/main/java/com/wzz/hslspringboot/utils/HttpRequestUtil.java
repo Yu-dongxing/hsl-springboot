@@ -208,19 +208,6 @@ public class HttpRequestUtil {
         }
         return sb.toString();
     }
-
-    /**
-     * 核心请求执行逻辑
-     * @param request HttpRequest对象
-     * @param headers 请求头对象
-     * @return 一个封装好的JSONObject，结构如下：
-     *         - 成功: { "status": 200, "httpStatus": 2xx, ... (原始响应的键值对) }
-     *         - 成功但响应非JSON: { "status": 200, "httpStatus": 2xx, "rawBody": "原始响应字符串" }
-     *         - 业务失败: { "status": 4xx/5xx, "httpStatus": 4xx/5xx, "errorBody": "错误响应体" }
-     *         - 请求异常: { "status": 500, "httpStatus": -1, "errorMessage": "异常信息" }
-     */
-
-
     private JSONObject executeRequest(HttpRequest request, RequestHeaderUtil headers) {
         // 应用请求头
         System.setProperty("sun.net.http.allowRestrictedHeaders", "true");
@@ -248,8 +235,6 @@ public class HttpRequestUtil {
                 }
             }
             response = request.execute();
-
-            // 请求成功 (HTTP状态码 2xx)
             if (response.isOk()) {
                 headers.setCookie(response);
                 set(headers);
@@ -258,10 +243,7 @@ public class HttpRequestUtil {
                 log.info("请求成功 to [{}], HTTP 状态码: {}, Response Body Length: {} ,Body: {}", request.getUrl(), response.getStatus(), body.length(),StrUtil.brief(body, 10000));
                 JSONObject resultJson;
                 try {
-                    // 原代码: reJson=reJson.parseObject(body); 是错误的用法。
-                    // 正确用法是调用静态方法 JSONObject.parseObject()。
                     resultJson = JSONObject.parseObject(body);
-                    // 如果响应体是 "null" 或空字符串，parseObject 可能返回 null
                     if (resultJson == null) {
                         resultJson = new JSONObject();
                     }
@@ -300,64 +282,38 @@ public class HttpRequestUtil {
             }
         }
     }
-    // =================================================================
-    // ====================== 新增的原生HTTP请求方法 =====================
-    // =================================================================
-
-    /**
-     * 使用 Java 原生 HttpURLConnection 发送 POST 表单请求。
-     * 此方法不依赖 Hutool 的 HTTP 客户端，作为备选方案。
-     *
-     * @param urlPath   请求的相对路径
-     * @param headers   请求头对象
-     * @param formData  表单数据
-     * @return 包含状态和数据的JSONObject，结构与 executeRequest 类似
-     */
     public JSONObject postFormNative(String urlPath, RequestHeaderUtil headers, Map<String, Object> formData) {
         String fullUrl = baseUrl + urlPath;
         HttpURLConnection conn = null;
         try {
             log.info("原生HTTP请求 to URL: [{}], Method: [POST]", fullUrl);
-
-            // 1. 准备表单数据
             String formString = toUrlEncodedString(formData);
             byte[] formBytes = formString.getBytes(StandardCharsets.UTF_8);
-
-            // 2. 创建连接
             URL url = new URL(fullUrl);
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
-            conn.setConnectTimeout(3000); // 连接超时
-            conn.setReadTimeout(5000);    // 读取超时
-            conn.setDoOutput(true);       // 允许写入请求体
-
-            // 3. 设置请求头
+            conn.setConnectTimeout(3000); // 不连接超时
+            conn.setReadTimeout(5000);    // 不读取超时
+            conn.setDoOutput(true);       // 不允许写入请求体
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
             conn.setRequestProperty("Content-Length", String.valueOf(formBytes.length));
             if (headers != null && headers.getHeader() != null) {
                 headers.getHeader().forEach(conn::setRequestProperty);
             }
             System.setProperty("sun.net.http.allowRestrictedHeaders", "true");
-
-
-            // 4. 发送请求体
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(formBytes);
             }
-
-            // 5. 获取响应
             int httpStatus = conn.getResponseCode();
             JSONObject resultJson;
 
-            if (httpStatus >= 200 && httpStatus < 300) { // 请求成功
-                // 处理Cookie
+            if (httpStatus >= 200 && httpStatus < 300) {
                 Map<String, List<String>> headerFields = conn.getHeaderFields();
                 List<String> cookies = headerFields.get("Set-Cookie");
                 if (cookies != null && !cookies.isEmpty()) {
                     headers.setCookie((HttpResponse) cookies);
                     set(headers);
                 }
-
                 String body = readStream(conn.getInputStream());
                 log.info("原生请求成功 to [{}], HTTP 状态码: {}, Response Body Length: {} ,Body: {}", fullUrl, httpStatus, body.length(), StrUtil.brief(body, 10000));
 
@@ -414,14 +370,6 @@ public class HttpRequestUtil {
             return "";
         }
     }
-
-
-    /**
-     * 将Map格式的表单数据转换为 x-www-form-urlencoded 格式的字符串
-     *
-     * @param formData 表单数据
-     * @return URL编码后的字符串
-     */
     private String toUrlEncodedString(Map<String, Object> formData) {
         if (MapUtil.isEmpty(formData)) {
             return "";
@@ -440,7 +388,6 @@ public class HttpRequestUtil {
                 }
             }
         } catch (UnsupportedEncodingException e) {
-            // 这在现代JVM中基本不可能发生，因为UTF-8是标准字符集
             log.error("严重错误：系统不支持UTF-8编码", e);
             throw new RuntimeException("UTF-8 encoding not supported", e);
         }

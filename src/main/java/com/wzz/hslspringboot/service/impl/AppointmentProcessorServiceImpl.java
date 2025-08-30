@@ -355,4 +355,50 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
 
         return submissionResponse;
     }
+    @Override
+    public boolean preProcessCheck(UserSmsWebSocket user) {
+        log.info("开始为用户【{}】执行预约任务预检...", user.getUserName());
+        try {
+            // 初始化必要的数据结构
+            RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
+            PostPointmentDTO dto = new PostPointmentDTO();
+
+            // 预检1: 检查用户信息
+            if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto)) {
+                log.error("预检失败：用户【{}】无法获取有效的用户信息。", user.getUserName());
+                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "获取用户信息失败或会话无效");
+                return false;
+            }
+
+            // 预检2: 检查车辆信息
+            if (!fetchAndSetVehicleInfo(user, requestHeaderUtil, dto)) {
+                log.error("预检失败：用户【{}】无法匹配到车牌号 {}", user.getUserName(), user.getVehicleLicensePlateNumber());
+                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "未找到匹配的车牌号: " + user.getVehicleLicensePlateNumber());
+                return false;
+            }
+
+            // 预检3: 检查粮库信息
+            JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
+            if (depotData == null) {
+                log.error("预检失败：用户【{}】无法获取有效的粮库信息或可用时间段。", user.getUserName());
+                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "搜索粮库信息失败或粮库无可用时间");
+                return false;
+            }
+
+            // 预检4: 检查粮食品种
+            if (!setGrainInfo(user, dto, depotData)) {
+                log.error("预检失败：用户【{}】无法匹配到粮食品种 {}", user.getUserName(), user.getGrainVarieties());
+                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "未找到匹配的粮食品种: " + user.getGrainVarieties());
+                return false;
+            }
+
+            log.info("用户【{}】的预约任务预检通过。", user.getUserName());
+            return true;
+
+        } catch (Exception e) {
+            log.error("为用户【{}】执行预检时发生未预期的异常: ", user.getUserName(), e);
+            userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "预检过程中发生异常: " + e.getMessage());
+            return false;
+        }
+    }
 }

@@ -21,7 +21,7 @@ public class SmsParser {
     public static String parseVerificationCode(String smsContent) {
         // 1. 基本校验：检查输入是否为空或仅有空白字符
         if (smsContent == null || smsContent.trim().isEmpty()) {
-            log.info("输入短信内容为空。");
+            //log.info("输入短信内容为空。");
             return null;
         }
         // 对内容进行trim，方便后续处理
@@ -50,7 +50,7 @@ public class SmsParser {
             // matcher.group(1) 会返回第一个捕获组的内容，即第一个匹配到的6位数字 "171220"
             return matcher.group(1);
         } else {
-            log.info("在带签名的短信内容中未找到6位数字验证码。");
+           log.info("在带签名的短信内容中未找到6位数字验证码。");
             return null;
         }
     }

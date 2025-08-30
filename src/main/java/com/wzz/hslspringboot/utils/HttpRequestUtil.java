@@ -33,6 +33,9 @@ public class HttpRequestUtil {
 
     private static final Logger log = LogManager.getLogger(HttpRequestUtil.class);
 
+    @Autowired
+    private IpProxyUtil ipProxyUtil;
+
     private String baseUrl = "https://hsn.sinograin.com.cn";
 
     // JDK 8u111版本后，HTTPS的代理隧道认证默认被禁用
@@ -234,6 +237,16 @@ public class HttpRequestUtil {
         HttpResponse response = null;
         try {
             log.info("请求网络 to URL: [{}], Method: [{}]", request.getUrl(), request.getMethod());
+            String ip=null;
+            int port=0;
+            if(ipProxyUtil.isProxy()){
+                Map<String , Object> s = ipProxyUtil.getProxyAsMap();
+                if(s!=null && s.get("ip")!=null && s.get("port")!=null ){
+                    ip = s.get("ip").toString();
+                    port = (int) s.get("port");
+                    request.setHttpProxy(ip,port);
+                }
+            }
             response = request.execute();
 
             // 请求成功 (HTTP状态码 2xx)

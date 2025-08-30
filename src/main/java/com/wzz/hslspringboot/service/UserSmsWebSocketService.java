@@ -35,4 +35,6 @@ public interface UserSmsWebSocketService {
     UserSmsWebSocket selectByDeviceId(String deviceId);
 
     void updateTaskStatus(Long userId, String status, String details);
+
+    void deleteById(Long id);
 }

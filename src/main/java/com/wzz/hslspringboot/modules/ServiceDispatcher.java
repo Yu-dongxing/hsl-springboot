@@ -1,6 +1,7 @@
 package com.wzz.hslspringboot.modules;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
 import com.wzz.hslspringboot.service.UserSmsWebSocketService;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,7 +35,7 @@ public enum ServiceDispatcher {
         // 在执行前，断言serviceInstance已经被注入，防止NPE
         Assert.notNull(serviceInstance, this.name() + " 服务的实例尚未被注入！");
 
-        log.info("准备在服务 {} 中执行方法 '{}'，参数: {}", this.name(), methodName, Arrays.toString(args));
+      //log.info("准备在服务 {} 中执行方法 '{}'，参数: {}", this.name(), methodName, Arrays.toString(args));
 
         // ... (这里的反射逻辑保持不变)
         for (Method method : this.serviceClass.getMethods()) {
@@ -65,7 +66,6 @@ public enum ServiceDispatcher {
                     }
 
                     if (canConvert) {
-                        log.info("找到匹配的方法并成功转换参数: {}", method);
                         return method.invoke(this.serviceInstance, convertedArgs);
                     }
 

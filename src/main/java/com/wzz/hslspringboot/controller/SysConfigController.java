@@ -22,7 +22,7 @@ public class SysConfigController {
      * 新增配置
      * POST /api/sys/config
      */
-    @PostMapping
+    @PostMapping("/add")
     public Result<?> addConfig(@RequestBody NewSysConfig newSysConfig) {
         try {
             if (sysConfigService.addConfig(newSysConfig)) {
@@ -56,7 +56,7 @@ public class SysConfigController {
             return Result.error("更新时ID不能为空");
         }
         if (sysConfigService.updateConfig(newSysConfig)) {
-            return Result.success("更新配置成功");
+            return Result.success("更新成功，返回更新后的数据",newSysConfig);
         }
         return Result.error("配置不存在或更新失败");
     }

@@ -35,14 +35,14 @@ public class WsHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        log.info("新的WebSocket连接已建立, SessionId: {}", session.getId());
+//        log.info("新的WebSocket连接已建立, SessionId: {}", session.getId());
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         try {
             String payload = message.getPayload();
-            log.info("收到来自, SessionId: {} 的消息: {}", session.getId(),payload);
+            //log.info("收到来自, SessionId: {} 的消息: {}", session.getId(),payload);
             WebSocketDTO messageDTO = JSONUtil.toBean(payload, WebSocketDTO.class);
 
             // 1. 核心校验：任何消息都必须包含 user, server, method
@@ -62,7 +62,7 @@ public class WsHandler extends TextWebSocketHandler {
                 // 如果该用户已在别处登录（存在旧会话），则断开旧会话
                 WebSocketSession oldSession = userSessionMap.get(userPhone);
                 if (oldSession != null && oldSession.isOpen()) {
-                    log.info("用户 {} 从新位置连接，关闭旧的会话: {}", userPhone, oldSession.getId());
+//                    log.info("用户 {} 从新位置连接，关闭旧的会话: {}", userPhone, oldSession.getId());
                     oldSession.close();
                 }
 
@@ -76,7 +76,7 @@ public class WsHandler extends TextWebSocketHandler {
                  userSms.setUserPhone(userPhone);
                  userSms.setStatus(true);
                  userSmsWebSocketService.saveUserWsaocket(userSms); // 示例
-                log.info("用户 {} 首次通信，已自动注册并绑定会话: {}", userPhone, session.getId());
+//                log.info("用户 {} 首次通信，已自动注册并绑定会话: {}", userPhone, session.getId());
             }
 
             // 3. 执行指令
@@ -116,10 +116,10 @@ public class WsHandler extends TextWebSocketHandler {
                 userSms.setUserPhone(userPhone);
                 userSms.setStatus(false);
 
-                log.info("准备为用户 {} 更新数据库状态为离线...", userPhone);
+//                log.info("准备为用户 {} 更新数据库状态为离线...", userPhone);
                 userSmsWebSocketService.saveUserWsaocket(userSms); // 更新用户为离线状态
-                log.info("成功更新用户 {} 的数据库状态为离线。", userPhone);
-                log.info("用户 {} 的WebSocket连接已断开, SessionId: {}", userPhone, session.getId());
+//                log.info("成功更新用户 {} 的数据库状态为离线。", userPhone);
+//                log.info("用户 {} 的WebSocket连接已断开, SessionId: {}", userPhone, session.getId());
 
             } catch (Exception e) {
                 // 捕获所有异常，并使用日志框架记录下来，e 参数会打印堆栈信息

@@ -79,6 +79,14 @@ public class UploadReservationInformation {
             return Result.error("修改失败，服务器内部错误");
         }
     }
+    /**
+     * 根据id删除
+     */
+    @GetMapping("/delete/{id}")
+    public Result<?> deleteById(@PathVariable Long id) {
+        userSmsWebSocketService.deleteById(id);
+        return Result.success("删除成功");
+    }
 
 
 }

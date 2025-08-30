@@ -39,6 +39,7 @@ public class PostYyTask {
     private static final String STATUS_SUCCESS = "成功";
     private static final String STATUS_FAILED = "异常";
     private static final String STATUS_INVALID_TIME = "时间格式无效";
+    private static final String STATUS_PRECHECK_FAILED = "预检失败"; // 新增状态
 
     // --- 新增：重试次数相关常量 ---
     private static final String MAX_RETRY_CONFIG_KEY = "maximum_number_of_retries";
@@ -79,7 +80,7 @@ public class PostYyTask {
      */
     @Scheduled(fixedRate = 1000)
     public void scheduleNewAppointments() {
-        log.info("扫描数据库中“待处理”的任务并进行调度");
+//        log.info("扫描数据库中“待处理”的任务并进行调度");
         // 1. 从数据库查询所有状态为“待处理”的任务
         List<UserSmsWebSocket> pendingTasks = userSmsWebSocketService.getAll(STATUS_PENDING);
 //        log.info("<<UNK>>::{}",pendingTasks);
@@ -125,6 +126,23 @@ public class PostYyTask {
                 log.error("用户ID: {} 的预约时间'{}'格式无效，请使用'yyyy-MM-dd HH:mm:ss'格式。", user.getId(), user.getAppointmentTime());
                 userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_INVALID_TIME, "预约时间格式错误: " + e.getMessage());
                 continue; // 处理下一个
+            }
+
+            // ================= 新增预检逻辑开始 =================
+            try {
+                log.info("对用户ID: {} 的任务进行预检...", user.getId());
+                boolean preCheckOk = appointmentProcessorService.preProcessCheck(user);
+                if (!preCheckOk) {
+                    log.warn("用户ID: {} 的任务未能通过预检，将不会被调度。", user.getId());
+                    // 预检失败的状态已经在 preProcessCheck 方法内部更新了，这里直接跳过即可
+                    continue; // 处理下一个任务
+                }
+                log.info("用户ID: {} 的任务通过预检。", user.getId());
+            } catch (Exception e) {
+                log.error("对用户ID: {} 的任务进行预检时发生严重异常，任务将不会被调度。", user.getId(), e);
+                // 异常情况下，也需要更新任务状态，并跳过
+                userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_PRECHECK_FAILED, "预检时发生未知异常: " + e.getMessage());
+                continue;
             }
 
             // 4. 计算任务执行延迟时间

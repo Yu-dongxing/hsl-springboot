@@ -50,7 +50,6 @@ public class IpProxyTask {
     /**
      * 定时从代理商处拉取IP并进行有效性验证
      */
-    @Scheduled(cron = "0 */1 * * * ?")
     public void fetchIpProxy() {
         log.info("开始执行定时任务：拉取并验证代理IP...");
         // 1. 获取所有启用的代理商配置
@@ -217,7 +216,6 @@ public class IpProxyTask {
      * cron表达式: "0 0 * * * ?" 表示每小时的0分0秒执行一次（即整点执行）
      */
 //    @Scheduled(cron = "0 0 * * * ?")
-    @Scheduled(cron = "0 */5 * * * ?")
     public void cleanupExpiredProxies() {
         log.info("开始执行定时任务：清理过期代理IP...");
         try {

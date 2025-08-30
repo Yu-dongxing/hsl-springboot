@@ -27,7 +27,6 @@ public class CorsConfig implements WebMvcConfigurer {
                     .setHeader("Access-Control-Allow-Headers", "*")                        // 允许的header参数
                     .setHeader("Access-Control-Expose-Headers", "Content-Disposition"); // 暴露 Content-Disposition 响应头
             SaRouter.match(SaHttpMethod.OPTIONS)
-                    .free(r -> log.info("--------OPTIONS预检请求，不做处理"))
                     .back();
         };
     }

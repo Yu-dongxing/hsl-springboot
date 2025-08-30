@@ -28,4 +28,6 @@ public interface AppointmentProcessorService {
 
 
     JSONObject processAppointment(UserSmsWebSocket user) throws IOException, InterruptedException;
+
+    boolean preProcessCheck(UserSmsWebSocket user);
 }

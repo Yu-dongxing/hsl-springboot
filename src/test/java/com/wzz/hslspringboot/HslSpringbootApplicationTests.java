@@ -15,6 +15,7 @@ import com.wzz.hslspringboot.service.AppointmentProcessorService;
 import com.wzz.hslspringboot.service.UserSmsWebSocketService;
 import com.wzz.hslspringboot.utils.DataConverterUtil;
 import com.wzz.hslspringboot.utils.EncryptionUtil;
+import com.wzz.hslspringboot.utils.IpProxyUtil;
 import com.wzz.hslspringboot.utils.RequestHeaderUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -276,6 +277,14 @@ class HslSpringbootApplicationTests {
             log.error("DTO转JSON失败", jsonProcessingException);
         }
         log.info("提交：{}",function.postInfo(requestHeaderUtil,postPointmentDTO));
+    }
+
+    @Autowired
+    private IpProxyUtil ipProxyUtil;
+    @Test
+    void ts (){
+            System.out.println(ipProxyUtil.isProxy());
+            System.out.println(ipProxyUtil.getProxyAsMap());
     }
 
 }

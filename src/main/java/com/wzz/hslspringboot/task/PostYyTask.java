@@ -120,7 +120,7 @@ public class PostYyTask {
             // 3. 解析预约时间
             LocalDateTime appointmentDateTime;
             try {
-                 appointmentDateTime =  DateTimeUtil.parseDateTime(user.getAppointmentTime());
+                appointmentDateTime =  DateTimeUtil.parseDateTime(user.getAppointmentTime());
 //                appointmentDateTime = LocalDateTime.parse(user.getAppointmentTime(), APPOINTMENT_TIME_FORMATTER);
             } catch (DateTimeParseException e) {
                 log.error("用户ID: {} 的预约时间'{}'格式无效，请使用'yyyy-MM-dd HH:mm:ss'格式。", user.getId(), user.getAppointmentTime());

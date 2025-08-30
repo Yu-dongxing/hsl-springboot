@@ -49,7 +49,7 @@ public class RequestHeaderUtil {
             // 3. 从 JSONObject 中提取数据并赋值给成员变量
             // 使用 optString 方法更安全，如果 key 不存在，会返回空字符串""而不是抛出异常
             this.JSESSIONID = jsonObject.getString("JSESSIONID");
-            this.slyyServletJSESSIONID = jsonObject.getString("slyyServletJSESSIONID");
+            this.slyyServletJSESSIONID = jsonObject.getString("JSESSIONID");
             this.ss_ctrl = jsonObject.getString("ss_ctrl");
             this.xxx = jsonObject.getString("xxx");
             this.Referer = jsonObject.getString("Referer");

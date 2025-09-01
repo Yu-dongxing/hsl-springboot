@@ -146,6 +146,10 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         dto.setCyr(user.getUserName());
         dto.setJsr(user.getUserName());
         dto.setSfz(user.getUserIdCard());
+        dto.setCyr(userData.getString("userNm"));
+        dto.setCyrnm("1");
+        dto.setCyrsfzh(user.getUserIdCard());
+        dto.setCyrsjh(user.getUserPhone());
         if (!StrUtil.hasBlank(headers.getMobileDeviceId())) {
             dto.setMobileDeviceId(headers.getMobileDeviceId());
             dto.setOpenId(headers.getMobileDeviceId());
@@ -326,7 +330,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
      * @return 最终提交结果，失败则返回null
      * @throws InterruptedException 如果线程在休眠时被中断
      */
-    private JSONObject scheduleAndSubmit(UserSmsWebSocket user, RequestHeaderUtil headers, PostPointmentDTO dto) throws InterruptedException {
+    private JSONObject scheduleAndSubmit(UserSmsWebSocket user, RequestHeaderUtil headers, PostPointmentDTO dto) throws InterruptedException, JsonProcessingException {
         log.info("步骤 9/{}: 准备定时提交最终预约请求...", TOTAL_STEPS);
         LocalDateTime appointmentDateTime;
         try {

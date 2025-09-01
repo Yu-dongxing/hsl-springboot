@@ -6,6 +6,7 @@ import cn.hutool.http.HttpResponse;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONException;
 import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.wzz.hslspringboot.DTO.PostPointmentDTO;
 import com.wzz.hslspringboot.DTO.SearchResvKdListDTO;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
@@ -29,7 +30,7 @@ public class Modules {
 
     // 建议将 HttpRequestUtil 实例化为成员变量，避免在每个方法中都 new 一个实例
 //    private final HttpRequestUtil util = new HttpRequestUtil();
-
+    private final EncryptionUtil encryptionUtil = new EncryptionUtil();
 
     @Autowired
     private HttpRequestUtil util;
@@ -168,8 +169,9 @@ public class Modules {
      * @param requestHeaderUtil 请求头工具
      * @return JSONObject
      */
-    public JSONObject postReserve(PostPointmentDTO postPointmentDTO, RequestHeaderUtil requestHeaderUtil) {
-        Map<String, Object> params = BeanUtil.beanToMap(postPointmentDTO);
+    public JSONObject postReserve(PostPointmentDTO postPointmentDTO, RequestHeaderUtil requestHeaderUtil) throws JsonProcessingException {
+        Map<String, Object> params = new HashMap<>();
+        params.put("params", encryptionUtil.secretParams(postPointmentDTO));
         log.info("<data>:{},<header>:{}",params,requestHeaderUtil);
         return util.postForm("/slyyServlet/service/nhyy/reserve", requestHeaderUtil, params);
     }

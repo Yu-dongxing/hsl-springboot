@@ -5,6 +5,7 @@ import cn.hutool.http.HttpResponse;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.wzz.hslspringboot.Captcha.Captcha;
 import com.wzz.hslspringboot.Captcha.CaptchaData;
 import com.wzz.hslspringboot.DTO.PostPointmentDTO;
@@ -120,7 +121,7 @@ public class Function {
     /**
      * 提交预约
      */
-    public JSONObject postInfo(RequestHeaderUtil header, PostPointmentDTO post) {
+    public JSONObject postInfo(RequestHeaderUtil header, PostPointmentDTO post) throws JsonProcessingException {
         JSONObject re = api.postReserve(post, header);
         if (re != null && re.getInteger("status") == 200) {
             return re;

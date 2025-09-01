@@ -16,13 +16,15 @@ import com.wzz.hslspringboot.DTO.PostPointmentDTO;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 
 public class EncryptionUtil {
     private static final Logger log = LogManager.getLogger(EncryptionUtil.class);
     // 这是一个实例变量，属于对象
     private final String publicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0uFFjWtTp+La/vi/MqlnuoMpHYR8QNVSuaV0WA0eYei+FnWt9e+pCYfocL8/tMQA4vWxCM9ZcffsgknC1H7hbKEnIAGrG+FOCTzzlWUbm9N7XdVUuyD5hrjr79rN64lwKR5SY0msogBdCf5Nlt4QX1A5klVnDU7NfCyBNmIo6G2tWWCsEEL7mp4PyEjD0LXmx8uBVboexkmIBV/eFTNdIduCKsCp43SCpyu8yfZ6aaSLlHP5Pj3cyC5IzTqBBeiSu/JyXoE9X4D6rxnzc+Ge/stpzXV9Qe9ZC85TsxfmDkERB61rYbrOq7dnw8aAGtkwaGvdqjAPLGK1dGileBOy1QIDAQAB";
-
+    private final String pubKeyGlobal ="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy+QzLirUZ/eh2FDzsu03HyjOGxrJyOp+aa+nDZMhSbgDbs92ZgS621tLYA9AZ0NcmghGbSzCr0GFx3AzceiD9H4pMej821wFSC1BxY8O8fjMI/nV25uyb59lf+Wo7LXRvEyT1aBPnvkK4zstI2NRLNdk2psDiSFCsWfc19y8CxBPgExM+e/DwjzhqyO6SJEG1lxKxoWniPvT4EKExi08Muizs4+J0Mdw/G0QhciWANQPPbqBEDfxv8Xtg4aguDyshCSkQUCUJZvF12U1pE4BomqqFab3I5KIfeYQ2wdSnfDPS6spXYog+fWC5JMALFgOgmbXnFWP+67lrp4586EFCQIDAQAB";
     /**
      * 密码+"{1#2$3%4(5)6@7!poeeww$3%4(5)djjkkldss}"
      */
@@ -71,6 +73,7 @@ public class EncryptionUtil {
      * 这是实例方法，因为它使用了实例变量 publicKey
      */
     public String rsa(PostPointmentDTO post) {
+        post.setSl("1");
         log.info("准备加密的数据DTO：{}", post);
         String str = post.getPhone() + "i" + post.getPznm() + "n" + post.getPzmxnm() + "s" + post.getSfz() + "p" + post.getRq() + "u" + post.getCphStr() + "r"
                 + post.getZznm() + post.getUuid() + post.getDxyzm() + post.getYyfsnm() + post.getYyfsmc();
@@ -81,8 +84,32 @@ public class EncryptionUtil {
         log.info("<加密后的数据(Base64)：>{}", encryptedBase64);
         return encryptedBase64;
     }
+    public String secretParams(PostPointmentDTO post) throws JsonProcessingException {
+        post.setSl("1");
+        String str= objectMapper.writeValueAsString(post);
+        System.out.println("加密前的数据："+str);
+        RSA rsa = new RSA(null, pubKeyGlobal);
+        byte[] data = StrUtil.bytes(str, CharsetUtil.CHARSET_UTF_8);
 
-    public static void main(String[] args) {
+        int blockSize = 117; // 1024 位 RSA 公钥最大明文长度
+        int length = data.length;
+        List<String> encryptedParts = new ArrayList<>();
+
+        for (int i = 0; i < length; i += blockSize) {
+            int end = Math.min(i + blockSize, length);
+            byte[] block = new byte[end - i];
+            System.arraycopy(data, i, block, 0, block.length);
+
+            byte[] encrypted = rsa.encrypt(block, KeyType.PublicKey);
+            encryptedParts.add(Base64.getEncoder().encodeToString(encrypted));
+        }
+
+        return String.join("@", encryptedParts);
+    }
+
+
+
+    public static void main(String[] args) throws JsonProcessingException {
         String jsonData = """
                 {
                     "yyr": "王应六",
@@ -153,6 +180,7 @@ public class EncryptionUtil {
         String originalSecretData = "dW29DNP7XP58Qez+3rj/mKHFg4LLdOX4JuZFuL9dazkSevloJXZEGkGTl5Xw2cexmJcPrNNb0nTIItcaIATfC8tCYRyDsnGOaKqGCiECGKZq6I70PfnA49KCCq/3wyz6B9hSqGLECUeceIfMh/BEdDQiqkjeOz8sGEfDBJhHyKhqDnafY4hQ3TXZjO5zYqtTDobWhA8/GeRJG3TqZyYMVgNfK9WP4dDK+WGNcb5sW0Z1iqrbnU+IgX4HD3+wlvDJcQ1IT4MNqMu/JnT/De/NH+ykUqtoGdboC1hbkRQh4d1WNkdSokFt+V25H/53CE4Dfs/IAXSNMFCcWr8Qipfhlg==";
         System.out.println("原始JSON中的secretData值为: " + originalSecretData);
         System.out.println("我们自己加密的结果与原始值是否一致: " + encryptedData.equals(originalSecretData));
+        System.out.println("二次加密: " + encryptionUtil.secretParams(dto));
     }
 
 

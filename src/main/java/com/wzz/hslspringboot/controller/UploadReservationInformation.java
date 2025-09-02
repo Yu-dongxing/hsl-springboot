@@ -27,6 +27,7 @@ public class UploadReservationInformation {
      */
     @PostMapping("/up")
     public Result<?> upload(@RequestBody UserSmsWebSocket user) {
+        log.info("上传预约信息：{}", user);
         try{
             userSmsWebSocketService.save(user);
             return Result.success("上传成功");

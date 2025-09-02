@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wzz.hslspringboot.DTO.PostPointmentDTO;
 import com.wzz.hslspringboot.apis.Function;
+import com.wzz.hslspringboot.exception.BusinessException;
 import com.wzz.hslspringboot.pojo.NewSysConfig;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
 import com.wzz.hslspringboot.service.AppointmentProcessorService;
@@ -25,6 +26,8 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 预约处理器服务实现类 (重构版)
@@ -50,82 +53,102 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
     private static final DateTimeFormatter APPOINTMENT_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final int TOTAL_STEPS = 10; // 总步骤数，用于日志输出
 
-    /**
-     * 为单个用户执行完整的预约流程 (总调度方法)。
-     *
-     * @param user 包含执行预约所需全部信息的用户对象
-     * @return 提交预约后服务端返回的JSONObject，若过程中发生任何错误则返回null
-     */
-    @Override
-    public JSONObject processAppointment(UserSmsWebSocket user) throws IOException, InterruptedException {
-        log.info("开始为用户【{}】执行完整的预约流程...", user.getUserName());
-        try {
-            /**
-             * 初始化数据结构
-             */
-            RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
-            PostPointmentDTO dto = new PostPointmentDTO();
+        /**
+         * @param user 包含执行预约所需全部信息的用户对象
+         * @return 包含准备好的 DTO 和 Headers 的 Map，若准备失败则抛出异常
+         * @throws IOException
+         * @throws InterruptedException
+         */
+        @Override
+        public Map<String, Object> prepareAppointmentData(UserSmsWebSocket user) throws IOException, InterruptedException {
+            log.info("开始为用户【{}】准备预约提交数据...", user.getUserName());
+            try {
+                RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
+                PostPointmentDTO dto = new PostPointmentDTO();
 
-            /**
-             * 查询用户信息
-             */
-            if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto)) return null;
-            /**
-             * 查询车辆信息
-             */
-            if (!fetchAndSetVehicleInfo(user, requestHeaderUtil, dto)) return null;
+                if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto))
+                    throw new BusinessException(0,"获取并设置用户信息失败");
+                if (!fetchAndSetVehicleInfo(user, requestHeaderUtil, dto))
+                    throw new BusinessException(0,"获取并设置车辆信息失败");
 
-            /**
-             * 搜索粮库信息
-             */
-            JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
-            if (depotData == null) return null;
+                JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
+                if (depotData == null)
+                    throw new BusinessException(0,"搜索并设置库点信息失败");
 
-            /**
-             * 设置粮库信息
-             */
-            if (!setGrainInfo(user, dto, depotData)) return null;
+                if (!setGrainInfo(user, dto, depotData))
+                    throw new BusinessException(0,"设置粮食品种信息失败");
 
-            performPreChecks(user, requestHeaderUtil, dto, depotData);
+                performPreChecks(user, requestHeaderUtil, dto, depotData);
 
-
-            NewSysConfig co = sysConfigService.getConfigByName("sys_config");
-            int page_sleep_time_s_value = 10;
-            if (co != null && co.getConfigValue() != null) {
-                try {
-                    Object page_sleep_time_value = co.getConfigValue().get("page_sleep_time_s");
-                    if (page_sleep_time_value instanceof Number) {
-                        page_sleep_time_s_value = ((Number) page_sleep_time_value).intValue();
+                NewSysConfig co = sysConfigService.getConfigByName("sys_config");
+                int page_sleep_time_s_value = 10;
+                if (co != null && co.getConfigValue() != null) {
+                    try {
+                        Object page_sleep_time_value = co.getConfigValue().get("page_sleep_time_s");
+                        if (page_sleep_time_value instanceof Number) {
+                            page_sleep_time_s_value = ((Number) page_sleep_time_value).intValue();
+                        }
+                    } catch (Exception e) {
+                        log.error("解析系统配置 'sys_config' 中的 page_sleep_time_s 失败，将使用默认值10。", e);
                     }
-                } catch (Exception e) {
-                    log.error("解析系统配置 'sys_config' 中的 page_sleep_time_s 失败，将使用默认值10。", e);
                 }
+                long startTime = System.currentTimeMillis();
+                if (!handleSmsVerification(user, requestHeaderUtil, dto))
+                    throw new BusinessException(0,"处理短信验证码失败");
+                long endTime = System.currentTimeMillis();
+                long sleepMillis = page_sleep_time_s_value * 1000L - (endTime - startTime);
+                if (sleepMillis > 0) {
+                    log.info("<计划总等待{}秒，业务处理耗时{}ms，实际休眠{}ms>：用户【{}】",
+                            page_sleep_time_s_value,
+                            (endTime - startTime),
+                            sleepMillis,
+                            user.getUserName());
+                    Thread.sleep(sleepMillis);
+                } else {
+                    log.warn("<计划总等待{}秒，但业务处理耗时{}ms已超出>：用户【{}】",
+                            page_sleep_time_s_value,
+                            (endTime - startTime),
+                            user.getUserName());
+                }
+
+                if (!fetchRandomCode(user, requestHeaderUtil, dto))
+                    throw new BusinessException(0,"获取随机码(uuid)失败");
+
+                populateRemainingDtoFields(user, dto);
+
+                if (!encryptDtoData(dto))
+                    throw new BusinessException(0,"加密预约数据失败");
+
+                log.info("用户【{}】的预约数据准备完成。", user.getUserName());
+                Map<String, Object> preparedData = new HashMap<>();
+                preparedData.put("dto", dto);
+                preparedData.put("headers", requestHeaderUtil);
+                return preparedData;
+
+            } catch (InterruptedException e) {
+                log.warn("用户【{}】的数据准备任务在等待过程中被中断。", user.getUserName());
+                Thread.currentThread().interrupt();
+                throw e;
+            } catch (Exception e) {
+                log.error("为用户【{}】准备预约数据时发生未预期的异常: ", user.getUserName(), e);
+                throw e;
             }
-
-            long startTime = System.currentTimeMillis();  // 开始计时
-            if (!handleSmsVerification(user, requestHeaderUtil, dto)) return null;
-            long endTime = System.currentTimeMillis();  // 结束计时
-            log.info("<等待{}秒：：>{}<UNK>...", page_sleep_time_s_value,user.getUserName());
-            long aaa=page_sleep_time_s_value * 1000L-(endTime - startTime);
-            Thread.sleep(aaa);
-
-            if (!fetchRandomCode(user, requestHeaderUtil, dto)) return null;
-
-            populateRemainingDtoFields(user, dto);
-
-            if (!encryptDtoData(dto)) return null;
-
-            return scheduleAndSubmit(user, requestHeaderUtil, dto);
-
-        } catch (InterruptedException e) {
-            log.warn("用户【{}】的预约任务在等待过程中被中断。", user.getUserName());
-            Thread.currentThread().interrupt();
-            throw e;
-        } catch (Exception e) {
-            log.error("为用户【{}】执行预约流程时发生未预期的异常: ", user.getUserName(), e);
-            throw e;
         }
-    }
+
+        /**
+         * 执行最终的预约提交操作
+         *
+         * @param headers 请求头工具类
+         * @param dto     已填充并加密好的数据传输对象
+         * @return 提交后服务端返回的JSONObject
+         */
+        @Override
+        public JSONObject submitAppointment(RequestHeaderUtil headers, PostPointmentDTO dto) throws JsonProcessingException {
+            log.info("步骤 9/{}: 开始为用户【{}】执行最终提交操作...", TOTAL_STEPS, dto.getYyr());
+            JSONObject submissionResponse = function.postInfo(headers, dto);
+            log.info("用户【{}】预约提交执行完毕，提交结果: {}", dto.getYyr(), submissionResponse != null ? submissionResponse.toJSONString() : "null");
+            return submissionResponse;
+        }
 
     // ============================ 私有业务步骤方法 ============================
 

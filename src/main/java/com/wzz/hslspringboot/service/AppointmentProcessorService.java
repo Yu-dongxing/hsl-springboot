@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -27,7 +28,11 @@ import java.util.concurrent.TimeUnit;
 public interface AppointmentProcessorService {
 
 
-    JSONObject processAppointment(UserSmsWebSocket user) throws IOException, InterruptedException;
+//    JSONObject processAppointment(UserSmsWebSocket user) throws IOException, InterruptedException;
+
+    Map<String, Object> prepareAppointmentData(UserSmsWebSocket user) throws IOException, InterruptedException;
+
+    JSONObject submitAppointment(RequestHeaderUtil headers, PostPointmentDTO dto) throws JsonProcessingException;
 
     boolean preProcessCheck(UserSmsWebSocket user);
 }

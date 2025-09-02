@@ -2,6 +2,9 @@ package com.wzz.hslspringboot.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.wzz.hslspringboot.mapper.UserSmsWebSocketMapper;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
@@ -25,30 +28,46 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
 
     /**
      * 保存
-     * @param userSmsWebSocket
      */
     @Override
     public void save(UserSmsWebSocket userSmsWebSocket) {
         UserSmsWebSocket u = ByUserPhoneSelect(userSmsWebSocket.getUserPhone());
         if (u == null) {
+            if(StrUtil.isBlank(userSmsWebSocket.getUserCookie())){
+                userSmsWebSocket.setUserCookie(null);
+            }
             userSmsWebSocket.setTaskStatus("待处理");
+            processJsonStringField(userSmsWebSocket);
             userSmsWebSocketMapper.insert(userSmsWebSocket);
         }else {
             CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
-            // 2. 执行拷贝
-            // 源: userSmsWebSocket (传入的、可能不完整的对象)
-            // 目标: u(从数据库查出的、带有完整ID和数据的对象)
             BeanUtil.copyProperties(userSmsWebSocket, u, copyOptions);
             u.setTaskStatus("待处理");
-            // 3. 使用带有正确ID和更新后字段的 u 对象进行更新
+            if(StrUtil.isBlank(u.getUserCookie())){
+                u.setUserCookie(null);
+            }
+            processJsonStringField(u);
             userSmsWebSocketMapper.updateById(u);
         }
 
     }
 
     /**
+     * 新增的私有方法：处理对象中需要转为JSON的字符串字段
+     * @param userSmsWebSocket 待处理的对象
+     */
+    private void processJsonStringField(UserSmsWebSocket userSmsWebSocket) {
+        String params = userSmsWebSocket.getUserCookie();
+        if (StrUtil.isNotBlank(params)) {
+            if (JSONUtil.isTypeJSONObject(params)) {
+                JSONObject jsonObject = JSONUtil.parseObj(params);
+                userSmsWebSocket.setUserCookie(jsonObject.toString());
+            }
+        }
+    }
+
+    /**
      * 保存用户线上状态
-     * @param userSmsWebSocket
      */
     @Override
     public void saveUserWsaocket(UserSmsWebSocket userSmsWebSocket) {
@@ -64,49 +83,38 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
     }
     /**
      * 保存或更新手机短信信息，此版本保留并优化了 BeanUtil.copyProperties 的使用。
+     * 优化点：简化了更新逻辑的嵌套，提高了代码的可读性和健壮性。
      *
      * @param incomingSmsData 包含手机号和原始短信内容的对象
      */
     @Transactional
     @Override
     public void saveOrUpdateSmsInfoWithBeanUtil(UserSmsWebSocket incomingSmsData) {
-        // 1. 健壮性前置检查
         if (incomingSmsData == null || !StringUtils.hasText(incomingSmsData.getUserPhone())) {
-            log.error("传入的短信数据对象为空或手机号为空");
+            log.error("传入的短信数据对象为空或手机号为空，处理终止。");
             return;
         }
-        String smsMessage = incomingSmsData.getUserSmsMessage();
-        // 2. 解析验证码，如果无法解析，则直接返回
-        String verificationCode = SmsParser.parseVerificationCode(smsMessage);
+        String verificationCode = SmsParser.parseVerificationCode(incomingSmsData.getUserSmsMessage());
         if (verificationCode == null) {
-            //log.warn("未能从手机号 {} 的短信内容中解析出验证码，忽略该条消息。{}", incomingSmsData.getUserPhone(),incomingSmsData);
-            return; // 提前返回，使后续逻辑更清晰
+            return;
         }
-        // 3. 根据手机号查找现有记录
         UserSmsWebSocket existingRecord = ByUserPhoneSelect(incomingSmsData.getUserPhone());
-        LocalDateTime now = LocalDateTime.now();
-
-        if (incomingSmsData == null) {
-            // 4. 新增逻辑：创建一个新的持久化对象
+        if (existingRecord == null) {
             UserSmsWebSocket newSmsRecord = new UserSmsWebSocket();
             newSmsRecord.setUserPhone(incomingSmsData.getUserPhone());
-            newSmsRecord.setUserSmsMessage(verificationCode); // 只存储解析后的验证码
-            newSmsRecord.setUpSmsTime(now);
+            newSmsRecord.setUserSmsMessage(verificationCode);
+            newSmsRecord.setUpSmsTime(LocalDateTime.now());
             userSmsWebSocketMapper.insert(newSmsRecord);
-
+            log.info("为手机号 {} 新增验证码记录。", incomingSmsData.getUserPhone());
         } else {
-            if (incomingSmsData.getUserSmsMessage()!=null){
-                if(existingRecord!=null&&existingRecord.getUserSmsMessage()!=null&&existingRecord.getUserSmsMessage().equals(verificationCode)) {
-                }else {
-               log.info("手机号 {} 的验证码发生变化，旧值: {}, 新值: {}，执行更新。", existingRecord.getUserPhone(), existingRecord.getUserSmsMessage(), verificationCode);
-                    CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
-                    BeanUtil.copyProperties(incomingSmsData, existingRecord, copyOptions);
-                    existingRecord.setUserSmsMessage(verificationCode);
-                    existingRecord.setUpSmsTime(LocalDateTime.now());
-                    userSmsWebSocketMapper.updateById(existingRecord);
-                }
+            if (!verificationCode.equals(existingRecord.getUserSmsMessage())) {
+                log.info("手机号 {} 的验证码发生变化，旧值: {}, 新值: {}，执行更新。", existingRecord.getUserPhone(), existingRecord.getUserSmsMessage(), verificationCode);
+                CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
+                BeanUtil.copyProperties(incomingSmsData, existingRecord, copyOptions);
+                existingRecord.setUserSmsMessage(verificationCode);
+                existingRecord.setUpSmsTime(LocalDateTime.now());
+                userSmsWebSocketMapper.updateById(existingRecord);
             }
-
         }
     }
     /**
@@ -214,5 +222,12 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
     @Override
     public void deleteById(Long id){
         userSmsWebSocketMapper.deleteById(id);
+    }
+
+    @Override
+    public Object getById(Long id) {
+        LambdaQueryWrapper<UserSmsWebSocket> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserSmsWebSocket::getId, id);
+        return userSmsWebSocketMapper.selectOne(queryWrapper);
     }
 }

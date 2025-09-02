@@ -37,4 +37,6 @@ public interface UserSmsWebSocketService {
     void updateTaskStatus(Long userId, String status, String details);
 
     void deleteById(Long id);
+
+    Object getById(Long id);
 }

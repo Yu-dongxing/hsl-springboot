@@ -53,103 +53,108 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
     private static final DateTimeFormatter APPOINTMENT_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final int TOTAL_STEPS = 10; // 总步骤数，用于日志输出
 
-        /**
-         * @param user 包含执行预约所需全部信息的用户对象
-         * @return 包含准备好的 DTO 和 Headers 的 Map，若准备失败则抛出异常
-         * @throws IOException
-         * @throws InterruptedException
-         */
-        @Override
-        public Map<String, Object> prepareAppointmentData(UserSmsWebSocket user) throws IOException, InterruptedException {
+    /**
+     * @param user 包含执行预约所需全部信息的用户对象
+     * @return 包含准备好的 DTO 和 Headers 的 Map，若准备失败则抛出异常
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    @Override
+    public Map<String, Object> prepareAppointmentData(UserSmsWebSocket user) throws IOException, InterruptedException {
 
-            log.info("开始为用户【{}】准备预约提交数据...", user.getUserName());
-            try {
-                RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
-                PostPointmentDTO dto = new PostPointmentDTO();
+        log.info("开始为用户【{}】准备预约提交数据...", user.getUserName());
+        try {
+            RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
+            PostPointmentDTO dto = new PostPointmentDTO();
 
-                if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto))
-                    throw new BusinessException(0,"获取并设置用户信息失败");
-                if (!fetchAndSetVehicleInfo(user, requestHeaderUtil, dto))
-                    throw new BusinessException(0,"获取并设置车辆信息失败");
+            if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto))
+                throw new BusinessException(0,"获取并设置用户信息失败");
+            if (!fetchAndSetVehicleInfo(user, requestHeaderUtil, dto))
+                throw new BusinessException(0,"获取并设置车辆信息失败");
 
-                JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
-                if (depotData == null)
-                    throw new BusinessException(0,"搜索并设置库点信息失败");
+            JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
+            // 此处 depotData 不会为 null，因为 searchAndSetDepotInfo 在失败时会抛出异常
 
-                if (!setGrainInfo(user, dto, depotData))
-                    throw new BusinessException(0,"设置粮食品种信息失败");
+            if (!setGrainInfo(user, dto, depotData))
+                throw new BusinessException(0,"设置粮食品种信息失败");
 
-                performPreChecks(user, requestHeaderUtil, dto, depotData);
+            performPreChecks(user, requestHeaderUtil, dto, depotData);
 
-                NewSysConfig co = sysConfigService.getConfigByName("sys_config");
-                int page_sleep_time_s_value = 10;
-                if (co != null && co.getConfigValue() != null) {
-                    try {
-                        Object page_sleep_time_value = co.getConfigValue().get("page_sleep_time_s");
-                        if (page_sleep_time_value instanceof Number) {
-                            page_sleep_time_s_value = ((Number) page_sleep_time_value).intValue();
-                        }
-                    } catch (Exception e) {
-                        log.error("解析系统配置 'sys_config' 中的 page_sleep_time_s 失败，将使用默认值10。", e);
+            NewSysConfig co = sysConfigService.getConfigByName("sys_config");
+            int page_sleep_time_s_value = 10;
+            if (co != null && co.getConfigValue() != null) {
+                try {
+                    Object page_sleep_time_value = co.getConfigValue().get("page_sleep_time_s");
+                    if (page_sleep_time_value instanceof Number) {
+                        page_sleep_time_s_value = ((Number) page_sleep_time_value).intValue();
                     }
+                } catch (Exception e) {
+                    log.error("解析系统配置 'sys_config' 中的 page_sleep_time_s 失败，将使用默认值10。", e);
                 }
-                long startTime = System.currentTimeMillis();
-                if (!handleSmsVerification(user, requestHeaderUtil, dto))
-                    throw new BusinessException(0,"处理短信验证码失败");
-                long endTime = System.currentTimeMillis();
-                long sleepMillis = page_sleep_time_s_value * 1000L - (endTime - startTime);
-                if (sleepMillis > 0) {
-                    log.info("<计划总等待{}秒，业务处理耗时{}ms，实际休眠{}ms>：用户【{}】",
-                            page_sleep_time_s_value,
-                            (endTime - startTime),
-                            sleepMillis,
-                            user.getUserName());
-                    Thread.sleep(sleepMillis);
-                } else {
-                    log.warn("<计划总等待{}秒，但业务处理耗时{}ms已超出>：用户【{}】",
-                            page_sleep_time_s_value,
-                            (endTime - startTime),
-                            user.getUserName());
-                }
-
-                if (!fetchRandomCode(user, requestHeaderUtil, dto))
-                    throw new BusinessException(0,"获取随机码(uuid)失败");
-
-                populateRemainingDtoFields(user, dto);
-
-                if (!encryptDtoData(dto))
-                    throw new BusinessException(0,"加密预约数据失败");
-
-                log.info("用户【{}】的预约数据准备完成。", user.getUserName());
-                Map<String, Object> preparedData = new HashMap<>();
-                preparedData.put("dto", dto);
-                preparedData.put("headers", requestHeaderUtil);
-                return preparedData;
-
-            } catch (InterruptedException e) {
-                log.warn("用户【{}】的数据准备任务在等待过程中被中断。", user.getUserName());
-                Thread.currentThread().interrupt();
-                throw e;
-            } catch (Exception e) {
-                log.error("为用户【{}】准备预约数据时发生未预期的异常: ", user.getUserName(), e);
-                throw e;
             }
-        }
+            long startTime = System.currentTimeMillis();
+            if (!handleSmsVerification(user, requestHeaderUtil, dto))
+                throw new BusinessException(0,"处理短信验证码失败");
+            long endTime = System.currentTimeMillis();
+            long sleepMillis = page_sleep_time_s_value * 1000L - (endTime - startTime);
+            if (sleepMillis > 0) {
+                log.info("<计划总等待{}秒，业务处理耗时{}ms，实际休眠{}ms>：用户【{}】",
+                        page_sleep_time_s_value,
+                        (endTime - startTime),
+                        sleepMillis,
+                        user.getUserName());
+                Thread.sleep(sleepMillis);
+            } else {
+                log.warn("<计划总等待{}秒，但业务处理耗时{}ms已超出>：用户【{}】",
+                        page_sleep_time_s_value,
+                        (endTime - startTime),
+                        user.getUserName());
+            }
 
-        /**
-         * 执行最终的预约提交操作
-         *
-         * @param headers 请求头工具类
-         * @param dto     已填充并加密好的数据传输对象
-         * @return 提交后服务端返回的JSONObject
-         */
-        @Override
-        public JSONObject submitAppointment(RequestHeaderUtil headers, PostPointmentDTO dto) throws JsonProcessingException {
-            log.info("步骤 9/{}: 开始为用户【{}】执行最终提交操作...", TOTAL_STEPS, dto.getYyr());
-            JSONObject submissionResponse = function.postInfo(headers, dto);
-            log.info("用户【{}】预约提交执行完毕，提交结果: {}", dto.getYyr(), submissionResponse != null ? submissionResponse.toJSONString() : "null");
-            return submissionResponse;
+            if (!fetchRandomCode(user, requestHeaderUtil, dto))
+                throw new BusinessException(0,"获取随机码(uuid)失败");
+
+            populateRemainingDtoFields(user, dto);
+
+            if (!encryptDtoData(dto))
+                throw new BusinessException(0,"加密预约数据失败");
+
+            log.info("用户【{}】的预约数据准备完成。", user.getUserName());
+            Map<String, Object> preparedData = new HashMap<>();
+            preparedData.put("dto", dto);
+            preparedData.put("headers", requestHeaderUtil);
+            return preparedData;
+
+        } catch (InterruptedException e) {
+            log.warn("用户【{}】的数据准备任务在等待过程中被中断。", user.getUserName());
+            Thread.currentThread().interrupt();
+            throw e;
+        } catch (Exception e) {
+            log.error("为用户【{}】准备预约数据时发生未预期的异常: ", user.getUserName(), e);
+            throw e;
         }
+    }
+
+    /**
+     * 执行最终的预约提交操作
+     *
+     * @param headers 请求头工具类
+     * @param dto     已填充并加密好的数据传输对象
+     * @return 提交后服务端返回的JSONObject
+     */
+    @Override
+    public JSONObject submitAppointment(RequestHeaderUtil headers, PostPointmentDTO dto) throws JsonProcessingException {
+        log.info("步骤 9/{}: 开始为用户【{}】执行最终提交操作...", TOTAL_STEPS, dto.getYyr());
+        try {
+            log.info("最终提交的用户【{}】的数据（加密前部分关键信息）: 预约人={}, 库点={}, 日期={}, 时间={}-{}",
+                    dto.getYyr(), dto.getYyr(), dto.getZzmc(), dto.getRq(), dto.getKssj(), dto.getJssj());
+        } catch (Exception e) {
+            log.warn("记录提交前日志时发生异常", e);
+        }
+        JSONObject submissionResponse = function.postInfo(headers, dto);
+        log.info("用户【{}】预约提交执行完毕，提交结果: {}", dto.getYyr(), submissionResponse != null ? submissionResponse.toJSONString() : "null");
+        return submissionResponse;
+    }
 
     // ============================ 私有业务步骤方法 ============================
 
@@ -160,8 +165,8 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         log.info("步骤 1/{}: 获取用户信息...", TOTAL_STEPS);
         JSONObject response = function.checkCookieAndGetResponse(user, headers);
         if (response == null || !response.getBooleanValue("success")) {
-//            userSmsWebSocketService.updateTaskStatus();
-            log.error("用户【{}】获取用户信息失败或会话无效: {}", user.getUserName(), response);
+            log.error("用户【{}】获取用户信息失败或会话无效，响应: {}", user.getUserName(), response != null ? response.toJSONString() : "null");
+            userSmsWebSocketService.updateTaskStatus(user.getId(),"异常","获取用户信息失败："+response.toJSONString());
             return false;
         }
         JSONObject userData = response.getJSONObject("data").getJSONObject("user");
@@ -179,7 +184,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
             dto.setMobileDeviceId(headers.getMobileDeviceId());
             dto.setOpenId(headers.getMobileDeviceId());
         }
-        log.info("用户【{}】获取用户信息成功。", user.getUserName());
+        log.info("用户【{}】获取用户信息成功: tjr={}, userType={}", user.getUserName(), dto.getTjr(), dto.getUserType());
         return true;
     }
 
@@ -202,36 +207,44 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
             }
         }
         // 2. 如果未找到，则执行添加逻辑
-        log.info("用户【{}】的车辆列表未找到车牌号 {}，开始执行添加新车流程...", user.getUserName(), user.getVehicleLicensePlateNumber());
+        log.warn("用户【{}】的车辆列表未找到车牌号 {}，开始执行添加新车流程...", user.getUserName(), user.getVehicleLicensePlateNumber());
         JSONObject addVehicleResponse = function.postCPH(user, headers);
 
-        if (addVehicleResponse != null) {
+        if (addVehicleResponse != null && "1".equals(addVehicleResponse.getString("retCode"))) {
             dto.setCllxNm("1"); // 使用预定义的常量
             dto.setCphStr(user.getVehicleLicensePlateNumber() + ",");
-            log.info("用户【{}】成功添加新车牌号 {}。API响应: {}", user.getUserName(), user.getVehicleLicensePlateNumber(),addVehicleResponse);
-            return true; // 添加并设置成功，返回true
+            log.info("用户【{}】成功添加新车牌号 {}。API响应: {}", user.getUserName(), user.getVehicleLicensePlateNumber(), addVehicleResponse.toJSONString());
+            return true;
         } else {
-            log.error("用户【{}】添加新车牌号 {} 失败，API返回null。",  user.getUserName(), user.getVehicleLicensePlateNumber());
+            log.error("用户【{}】添加新车牌号 {} 失败，API响应: {}", user.getUserName(), user.getVehicleLicensePlateNumber(), addVehicleResponse != null ? addVehicleResponse.toJSONString() : "null");
             return false;
         }
     }
 
     /**
      * 步骤 3: 搜索预约库点和时间信息
-     * @return 库点数据JSONObject，失败则返回null
+     * @return 库点数据JSONObject，失败则抛出异常
      */
     private JSONObject searchAndSetDepotInfo(UserSmsWebSocket user, RequestHeaderUtil headers, PostPointmentDTO dto) {
         log.info("步骤 3/{}: 搜索预约库点信息...", TOTAL_STEPS);
         JSONObject response = function.search(user, headers);
+        log.debug("用户【{}】搜索库点API原始响应: {}", user.getUserName(), response != null ? response.toJSONString() : "null");
+
+        // 检查1: API响应是否有效
         if (response == null || !response.containsKey("data")) {
             log.error("用户【{}】搜索库点信息失败，API返回的响应为空或不包含 'data' 键。", user.getUserName());
-            return null;
+            throw new BusinessException(0,"搜索库点信息失败，中心库系统未返回有效响应。");
         }
+
         JSONArray dataArray = response.getJSONArray("data");
+
+        // 检查2: 是否返回了任何库点数据
         if (dataArray == null || dataArray.isEmpty()) {
-            log.error("用户【{}】搜索库点信息未返回有效数据，可能原因：没有符合条件的库点或当前没有可预约的时间段。", user.getUserName());
+            log.error("用户【{}】搜索库点信息未返回有效数据。可能原因：没有符合条件的库点或当前没有可预约的时间段。", user.getUserName());
+            throw new BusinessException(0,"未搜索到可用的预约库点，请检查预约设置或稍后再试。");
         }
-        JSONObject depotData = response.getJSONArray("data").getJSONObject(0);
+
+        JSONObject depotData = dataArray.getJSONObject(0);
         dto.setZzmc(depotData.getString("zzmc"));
         dto.setZznm(depotData.getString("zznm"));
         dto.setLatitude(depotData.getString("latitude"));
@@ -239,15 +252,20 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         dto.setLxfs(depotData.getString("lxfs"));
         dto.setRq(depotData.getString("rq"));
         dto.setPznm(depotData.getString("yypznm"));
+
         JSONArray timeSlotArray = depotData.getJSONArray("yypzmxList");
-        if (timeSlotArray.isEmpty()) {
+
+        // 检查3: 库点是否返回了可用的时间段
+        if (timeSlotArray == null || timeSlotArray.isEmpty()) {
             log.error("用户【{}】的预约库点 {} 没有可用的时间段", user.getUserName(), depotData.getString("zzmc"));
-            return null;
+            throw new BusinessException(0,"库点【" + depotData.getString("zzmc") + "】当前没有可预约的时间段。");
         }
+
         JSONObject firstTimeSlot = timeSlotArray.getJSONObject(0);
         dto.setKssj(firstTimeSlot.getString("kssj"));
         dto.setJssj(firstTimeSlot.getString("jssj"));
         dto.setPzmxnm(firstTimeSlot.getString("yypzmxnm"));
+
         log.info("用户【{}】获取到预约库点: {}, 日期: {}, 时间: {}-{}", user.getUserName(), dto.getZzmc(), dto.getRq(), dto.getKssj(), dto.getJssj());
         return depotData;
     }
@@ -269,7 +287,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
                 }
             }
         }
-        log.error("用户【{}】未在库点粮食品种列表中找到匹配项: {}", user.getUserName(), user.getGrainVarieties());
+        log.error("用户【{}】未在库点粮食品种列表中找到匹配项: {}。可用品种: {}", user.getUserName(), user.getGrainVarieties(), grainArray != null ? grainArray.toJSONString() : "[]");
         return false;
     }
 
@@ -278,10 +296,15 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
      */
     private void performPreChecks(UserSmsWebSocket user, RequestHeaderUtil headers, PostPointmentDTO dto, JSONObject depotData) {
         log.info("步骤 5/{}: 执行业务前置检查...", TOTAL_STEPS);
+        log.info(" -> 5.1/5: 执行 getGrxxStatus 检查...");
         function.getGrxxStatus(dto, headers, user);
+        log.info(" -> 5.2/5: 执行 hdmCheck 检查...");
         function.hdmCheck(headers, user);
+        log.info(" -> 5.3/5: 执行 getDistanceByCurrentLocation 检查...");
         function.getDistanceByCurrentLocation(dto.getZznm(), dto.getLongitude(), dto.getLatitude(), dto, headers, user);
+        log.info(" -> 5.4/5: 执行 getSmsBooles 检查...");
         function.getSmsBooles(dto, headers);
+        log.info(" -> 5.5/5: 执行 getResvSjList 检查...");
         function.getResvSjList(headers, depotData);
         log.info("用户【{}】业务前置检查调用完成。", user.getUserName());
     }
@@ -290,8 +313,9 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
      * 步骤 6: 获取随机码
      */
     private boolean fetchRandomCode(UserSmsWebSocket user, RequestHeaderUtil headers, PostPointmentDTO dto) {
-        log.info("步骤 6/{}: 获取随机码...", TOTAL_STEPS);
+        log.info("步骤 6/{}: 获取随机码(uuid)...", TOTAL_STEPS);
         function.getRandomcode(dto, headers, user);
+        log.info("用户【{}】获取随机码(uuid)调用完成。", user.getUserName());
         return true;
     }
 
@@ -302,13 +326,13 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         log.info("步骤 7/{}: 处理短信验证码...", TOTAL_STEPS);
         JSONObject checkRe = function.checkData(dto, headers, user);
 
-        if (!checkRe.getBoolean("needsms")) {
+        if (checkRe != null && !checkRe.getBooleanValue("needsms")) {
             dto.setDxyzm("");
             log.info("用户【{}】此次操作无需短信验证。", user.getUserName());
             return true;
         }
 
-        log.info("用户【{}】此次操作需要短信验证，正在检查本地验证码...", user.getUserName());
+        log.info("用户【{}】此次操作需要短信验证，启动本地验证码轮询...", user.getUserName());
         for (int i = 0; i < 30; i++) {
             UserSmsWebSocket latestUser = userSmsWebSocketService.ByUserPhoneSelect(user.getUserPhone());
             if (latestUser != null && latestUser.getUpSmsTime() != null && !StrUtil.isBlank(latestUser.getUserSmsMessage())) {
@@ -317,26 +341,26 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
                     dto.setDxyzm(latestUser.getUserSmsMessage());
                     userSmsWebSocketService.updateTaskStatus(user.getId(),"执行中","用户【"+ user.getUserName() +"】成功获取到有效期内的验证码: "+latestUser.getUserSmsMessage()+"");
                     log.info("用户【{}】成功获取到有效期内的验证码: {}", user.getUserName(), latestUser.getUserSmsMessage());
-                    break;
+                    return true; // 获取到验证码后直接返回
                 } else {
-                    dto.setDxyzm("");
-//                    log.warn("用户【{}】的验证码已超过30秒有效期，将不使用该验证码。", user.getUserName());
+                    log.warn("用户【{}】找到一条验证码，但已超过30秒有效期。", user.getUserName());
                 }
-            } else {
-                dto.setDxyzm("");
-                userSmsWebSocketService.updateTaskStatus(user.getId(),"执行中","用户【"+ user.getUserName() +"】需要验证码，但数据库中未找到有效验证码或时间戳。");
-
-                log.warn("用户【{}】需要验证码，但数据库中未找到有效验证码或时间戳。", user.getUserName());
             }
             Thread.sleep(1000);
         }
-        return true;
+
+        // 循环结束仍未找到
+        dto.setDxyzm("");
+        userSmsWebSocketService.updateTaskStatus(user.getId(),"执行中","用户【"+ user.getUserName() +"】在30秒内未获取到有效验证码。");
+        log.warn("用户【{}】在等待30秒后仍未获取到有效的短信验证码，将尝试无验证码提交。", user.getUserName());
+        return true; // 即使没有验证码，也认为此步骤处理完成，让后续逻辑决定是否能提交
     }
 
     /**
      * 步骤 8: 填充其余固定的DTO字段
      */
     private void populateRemainingDtoFields(UserSmsWebSocket user, PostPointmentDTO dto) {
+        log.info("步骤 8/{}: 填充DTO中其余字段...", TOTAL_STEPS);
         dto.setSl(user.getFoodOfGrainNum());
         dto.setPhone(user.getUserPhone());
         dto.setYyr(user.getUserName());
@@ -353,13 +377,14 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         dto.setDevicetype("weixin");
         dto.setZldd("");
         dto.setCyrsjh("");
+        log.info("用户【{}】DTO其余字段填充完毕。", user.getUserName());
     }
 
     /**
      * 步骤 9: 对预约数据进行加密
      */
     private boolean encryptDtoData(PostPointmentDTO dto) {
-        log.info("步骤 8/{}: 对预约数据进行加密...", TOTAL_STEPS);
+        log.info("步骤 9/{}: 对预约数据进行加密...", TOTAL_STEPS);
         try {
             String secretData = encryptionUtil.rsa(dto);
             dto.setSecretData(secretData);
@@ -374,77 +399,39 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         }
     }
 
-    /**
-     * 步骤 10: 定时提交最终预约请求
-     * @return 最终提交结果，失败则返回null
-     * @throws InterruptedException 如果线程在休眠时被中断
-     */
-    private JSONObject scheduleAndSubmit(UserSmsWebSocket user, RequestHeaderUtil headers, PostPointmentDTO dto) throws InterruptedException, JsonProcessingException {
-        log.info("步骤 9/{}: 准备定时提交最终预约请求...", TOTAL_STEPS);
-        LocalDateTime appointmentDateTime;
-        try {
-            appointmentDateTime = LocalDateTime.parse(user.getAppointmentTime(), APPOINTMENT_TIME_FORMATTER);
-        } catch (DateTimeParseException e) {
-            log.error("用户【{}】解析预约时间 '{}' 失败，请检查时间格式是否为 'yyyy-MM-dd HH:mm:ss'", user.getUserName(), user.getAppointmentTime(), e);
-            return null;
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        if (now.isBefore(appointmentDateTime)) {
-            long millisToWait = Duration.between(now, appointmentDateTime).toMillis();
-            if (millisToWait > 0) {
-                log.info("用户【{}】的预约时间为 {}，当前时间为 {}，需等待 {} 秒后执行提交。",
-                        user.getUserName(),
-                        appointmentDateTime.format(APPOINTMENT_TIME_FORMATTER),
-                        now.format(APPOINTMENT_TIME_FORMATTER),
-                        millisToWait / 1000.0);
-                Thread.sleep(millisToWait);
-            }
-        }
-
-        log.info("步骤 10/{}: 已到达指定预约时间，开始执行最终提交操作...", TOTAL_STEPS);
-        JSONObject submissionResponse = function.postInfo(headers, dto);
-        log.info("用户【{}】预约流程执行完毕，提交结果: {}", user.getUserName(), submissionResponse != null ? submissionResponse.toJSONString() : "null");
-
-        return submissionResponse;
-    }
     @Override
     public boolean preProcessCheck(UserSmsWebSocket user) {
         log.info("开始为用户【{}】执行预约任务预检...", user.getUserName());
         try {
-            // 初始化必要的数据结构
             RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
             PostPointmentDTO dto = new PostPointmentDTO();
 
-            // 预检1: 检查用户信息
+            // 预检1 (关键检查): 检查用户信息
             if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto)) {
                 log.error("预检失败：用户【{}】无法获取有效的用户信息。", user.getUserName());
-                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "获取用户信息失败或会话无效");
+                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "获取用户信息失败或用户账号密码错误");
                 return false;
             }
-            // 预检2: 检查车辆信息
+            // 预检2 (关键检查): 检查车辆信息
             if (!fetchAndSetVehicleInfo(user, requestHeaderUtil, dto)) {
-                log.error("预检失败：用户【{}】无法匹配到车牌号,并且无法添加车牌号 {}", user.getUserName(), user.getVehicleLicensePlateNumber());
-                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "未找到匹配的车牌号，并且无法添加车牌号: " + user.getVehicleLicensePlateNumber());
+                log.error("预检失败：用户【{}】无法匹配或添加车牌号 {}", user.getUserName(), user.getVehicleLicensePlateNumber());
+                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "未找到或无法添加车牌号: " + user.getVehicleLicensePlateNumber());
                 return false;
             }
 
-            // 预检3: 检查粮库信息
-            JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
-            if (depotData == null ) {
-                log.error("预检失败：用户【{}】无法获取有效的粮库信息或可用时间段。", user.getUserName());
-                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "搜索粮库信息失败或粮库无可用时间");
-                return false;
+            // 预检3 & 4 (非关键检查，改为警告): 检查粮库和粮食品种
+            try {
+                JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
+                if (!setGrainInfo(user, dto, depotData)) {
+                    log.warn("预检警告：用户【{}】无法匹配到粮食品种 {}。此问题将在任务正式执行时再次检查。", user.getUserName(), user.getGrainVarieties());
+                    userSmsWebSocketService.updateTaskStatus(user.getId(), "预检警告", "预检时未找到匹配的粮食品种: " + user.getGrainVarieties());
+                }
+            } catch (Exception e) {
+                log.warn("预检警告：用户【{}】无法获取有效的粮库信息。此问题将在任务正式执行时再次检查。原因: {}", user.getUserName(), e.getMessage());
+                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检警告", "预检时搜索粮库信息失败: " + e.getMessage());
             }
 
-            // 预检4: 检查粮食品种
-            if (!setGrainInfo(user, dto, depotData)) {
-                log.error("预检失败：用户【{}】无法匹配到粮食品种 {}", user.getUserName(), user.getGrainVarieties());
-                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "未找到匹配的粮食品种: " + user.getGrainVarieties());
-                return false;
-            }
-
-            log.info("用户【{}】的预约任务预检通过。", user.getUserName());
+            log.info("用户【{}】的预约任务预检通过（部分检查项可能为警告状态）。", user.getUserName());
             return true;
 
         } catch (Exception e) {
@@ -459,31 +446,27 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
     public boolean preProcessCheckByReport(UserSmsWebSocket user) {
         log.info("开始为用户【{}】执行重新预检...", user.getUserName());
         try {
-            // 初始化必要的数据结构
             RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
             PostPointmentDTO dto = new PostPointmentDTO();
 
-            // 预检1: 检查用户信息
+            // 预检1 (关键检查): 检查用户信息
             if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto)) {
                 log.error("重新预检失败：用户【{}】无法获取有效的用户信息。", user.getUserName());
                 userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检失败", "获取用户信息失败或会话无效");
                 return false;
             }
 
-            // 预检3: 检查粮库信息
-//            JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
-//            if (depotData == null) {
-//                log.error("重新预检失败：用户【{}】无法获取有效的粮库信息或可用时间段。", user.getUserName());
-//                userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检失败", "搜索粮库信息失败或粮库无可用时间");
-//                return false;
-//            }
-//
-//            // 预检4: 检查粮食品种
-//            if (!setGrainInfo(user, dto, depotData)) {
-//                log.error("重新预检失败：用户【{}】无法匹配到粮食品种 {}", user.getUserName(), user.getGrainVarieties());
-//                userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检失败", "未找到匹配的粮食品种: " + user.getGrainVarieties());
-//                return false;
-//            }
+            // 预检3 & 4 (非关键检查，改为警告): 检查粮库和粮食品种
+            try {
+                JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
+                if (!setGrainInfo(user, dto, depotData)) {
+                    log.warn("重新预检警告：用户【{}】无法匹配到粮食品种 {}。此问题将在任务正式执行时再次检查。", user.getUserName(), user.getGrainVarieties());
+                    userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检警告", "重新预检时未找到匹配的粮食品种: " + user.getGrainVarieties());
+                }
+            } catch (Exception e) {
+                log.warn("重新预检警告：用户【{}】无法获取有效的粮库信息。此问题将在任务正式执行时再次检查。原因: {}", user.getUserName(), e.getMessage());
+                userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检警告", "重新预检时搜索粮库信息失败: " + e.getMessage());
+            }
 
             log.info("用户【{}】的预约任务重新预检通过。", user.getUserName());
             user.setTaskStatus("待处理");
@@ -492,7 +475,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
 
         } catch (Exception e) {
             log.error("为用户【{}】执行重新预检时发生未预期的异常: ", user.getUserName(), e);
-            userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检失败", "预检过程中发生异常: " + e.getMessage());
+            userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检失败", "重新预检过程中发生异常: " + e.getMessage());
             return false;
         }
     }

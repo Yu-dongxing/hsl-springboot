@@ -99,14 +99,19 @@ public class Function {
                 response.put("success", true);
                 response.put("message", "Cookie校验成功");
                 response.put("data", userInfo);
-
                 // 找到后立即返回，无需继续遍历
                 return response;
             }
         }
 
-        // 6. 如果循环结束仍未找到，说明Cookie有效但无登录用户
-        response.put("message", "未找到有效的登录会话");
+        JSONObject errorInfo = dataArray.getJSONObject(0);
+        String errorMessage = "未知的登录错误"; // 提供一个默认的错误信息
+
+        if (errorInfo != null && errorInfo.getString("retMessage") != null) {
+            errorMessage = errorInfo.getString("retMessage");
+        }
+
+        response.put("message", errorMessage);
         return response;
     }
 
@@ -418,10 +423,9 @@ public class Function {
 
     public JSONObject getRandomcode(UserSmsWebSocket user, RequestHeaderUtil header) {
         JSONObject re = api.getRandomcode(user, header);
-        if (re != null && re.getInteger("status") == 200) {
+//        if (re != null && re.getInteger("status") == 200) {
             return re;
-        }
-        return null;
+//        }
     }
 
     /**

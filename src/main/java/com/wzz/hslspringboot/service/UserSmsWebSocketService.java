@@ -38,5 +38,7 @@ public interface UserSmsWebSocketService {
 
     void deleteById(Long id);
 
-    Object getById(Long id);
+    UserSmsWebSocket getById(Long id);
+
+    void clearUserLogInfoById(Long id);
 }

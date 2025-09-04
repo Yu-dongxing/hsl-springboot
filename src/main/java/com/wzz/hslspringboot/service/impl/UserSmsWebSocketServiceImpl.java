@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -150,7 +151,6 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
      */
     @Override
     public List<UserSmsWebSocket> getAll(String taskStatus) {
-        // 1. 创建 LambdaQueryWrapper 查询构造器
         LambdaQueryWrapper<UserSmsWebSocket> queryWrapper = new LambdaQueryWrapper<>();
 
         if (StringUtils.hasText(taskStatus)) {
@@ -176,30 +176,17 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
      */
     @Override
     public UserSmsWebSocket selectByDeviceId(String deviceId) {
-        // 1. 创建 LambdaQueryWrapper 对象
         LambdaQueryWrapper<UserSmsWebSocket> queryWrapper = new LambdaQueryWrapper<>();
-
-        // 2. 构建查询条件 - 优先使用精确匹配
-        // 通常根据设备ID查询是精确查找，性能更好，也更符合业务逻辑
         queryWrapper.apply(
                 "JSON_UNQUOTE(JSON_EXTRACT(user_cookie, '$.mobileDeviceId')) = {0}",
                 deviceId
         );
-
-        // 3. 在SQL语句末尾添加 "LIMIT 1"，确保数据库层面最多只返回一条记录
-        // 这是防止 `selectOne` 抛出 TooManyResultsException 的最佳实践
         queryWrapper.last("LIMIT 1");
-
-        // 4. 执行查询
-        // 因为有 "LIMIT 1" 的保证，即使有多条数据满足条件，这里也绝对不会抛出异常
-        UserSmsWebSocket userSmsWebSocket = userSmsWebSocketMapper.selectOne(queryWrapper);
-
-        // 5. 返回结果
-        return userSmsWebSocket;
+        return userSmsWebSocketMapper.selectOne(queryWrapper);
     }
     /**
-     * 高效地更新指定ID用户的任务状态和详情。
-     * 这种方式只更新必要的字段，比先查询再更新整个对象性能更好。
+     * 高效地更新指定ID用户的任务状态和详情，并将变更记录追加到用户预约详情日志中。
+     * 这种方式在更新必要字段的同时，保留了完整的状态变更历史。
      * @param userId 用户记录的ID
      * @param status 要更新的任务状态
      * @param details 状态的详细描述（例如：错误信息）
@@ -207,15 +194,29 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
     @Override
     public void updateTaskStatus(Long userId, String status, String details) {
         if (userId == null || !StringUtils.hasText(status)) {
-            return; // 基本的参数校验
+            return;
+        }
+        UserSmsWebSocket currentUserState = userSmsWebSocketMapper.selectById(userId);
+        if (currentUserState == null) {
+            log.error("尝试更新一个不存在的用户记录，userId: {}", userId);
+            return;
+        }
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String newLogEntry = String.format("[%s] 任务状态: %s, 详情: %s", timestamp, status, details);
+        String existingLogs = currentUserState.getUserLogInfo();
+        String updatedLogs;
+        if (StringUtils.hasText(existingLogs)) {
+            updatedLogs = existingLogs + "<br>" + newLogEntry;
+        } else {
+            updatedLogs = newLogEntry;
         }
         UserSmsWebSocket updateEntity = new UserSmsWebSocket();
         updateEntity.setId(userId);
         updateEntity.setTaskStatus(status);
         updateEntity.setStatusDetails(details);
+        updateEntity.setUserLogInfo(updatedLogs);
         userSmsWebSocketMapper.updateById(updateEntity);
     }
-
     /**
      * 根据id删除
      */
@@ -225,9 +226,22 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
     }
 
     @Override
-    public Object getById(Long id) {
+    public UserSmsWebSocket getById(Long id) {
         LambdaQueryWrapper<UserSmsWebSocket> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(UserSmsWebSocket::getId, id);
         return userSmsWebSocketMapper.selectOne(queryWrapper);
+    }
+
+    /**
+     * 根据id清除用户日志详情
+     */
+    @Override
+    public void clearUserLogInfoById(Long id){
+        UserSmsWebSocket u = userSmsWebSocketMapper.selectById(id);
+        if (u == null) {
+            return;
+        }
+        u.setUserLogInfo("");
+        userSmsWebSocketMapper.updateById(u);
     }
 }

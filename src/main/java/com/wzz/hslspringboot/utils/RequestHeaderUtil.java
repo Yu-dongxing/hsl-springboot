@@ -1,5 +1,7 @@
 package com.wzz.hslspringboot.utils;
 
+import cn.hutool.core.lang.UUID;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpResponse;
 import com.alibaba.fastjson.JSONObject;
@@ -28,7 +30,9 @@ public class RequestHeaderUtil {
     private String cookie;
     private String mobileDeviceId;
     private String slyyServletJSESSIONID;
-    /**
+
+
+     /**
      * userSmsWebSocket.getUserCookie():
      * {
      * "JSESSIONID":"JSESSIONID=3CC6C5FF9ED7C953E350F79501246CD4",
@@ -37,37 +41,75 @@ public class RequestHeaderUtil {
      * "Referer":"https://hsn.sinograin.com.cn/mobilexcx/html/main/main.html?code=0015jKFa1GPa9K0cK8Ia1rnqQL05jKFf&state=main",
      * "mobileDeviceId":"mobileDeviceId=os7mus9HY8oa5IQjlAevxA5YdUVM"
      * }
+     *
      * @param userSmsWebSocket
      */
     public RequestHeaderUtil(UserSmsWebSocket userSmsWebSocket) {
         // 1. 获取 JSON 字符串
         String cookieJsonString = userSmsWebSocket.getUserCookie();
-        // 2. 解析 JSON 并赋值
-        try {
-            // 创建 JSONObject 对象
-            JSONObject jsonObject = JSONObject.parseObject(cookieJsonString);
-            // 3. 从 JSONObject 中提取数据并赋值给成员变量
-            // 使用 optString 方法更安全，如果 key 不存在，会返回空字符串""而不是抛出异常
-            this.JSESSIONID = jsonObject.getString("JSESSIONID");
-            this.slyyServletJSESSIONID = jsonObject.getString("JSESSIONID");
-            this.ss_ctrl = jsonObject.getString("ss_ctrl");
-            this.xxx = jsonObject.getString("xxx");
-            this.Referer = jsonObject.getString("Referer");
-            this.mobileDeviceId = jsonObject.getString("mobileDeviceId");
-        } catch (Exception e) {
-            // 记录日志或者处理异常，例如设置默认值
-            System.err.println("解析用户Cookie JSON失败: " + e.getMessage());
-            // 根据业务需求，可以选择在此处初始化变量为空字符串或null
-            this.JSESSIONID = "";
-            this.slyyServletJSESSIONID ="";
-            this.ss_ctrl = "";
-            this.xxx = "";
-            this.Referer = "";
-            this.mobileDeviceId = "";
+        boolean useDefaultValues = false;
+
+        // 2. 判断是否为空，如果为空则标记使用默认值
+        if (StrUtil.isBlank(cookieJsonString)) {
+            useDefaultValues = true;
+            log.warn("用户Cookie JSON字符串为空，将使用随机默认值。");
+        } else {
+            // 3. 解析 JSON 并赋值
+            try {
+                // 创建 JSONObject 对象
+                JSONObject jsonObject = JSONObject.parseObject(cookieJsonString);
+
+                // 如果解析出的jsonObject为空或者没有内容，也使用默认值
+                if (jsonObject == null || jsonObject.isEmpty()) {
+                    useDefaultValues = true;
+                    log.warn("解析后的用户Cookie JSON对象为空，将使用随机默认值。");
+                } else {
+                    // 从 JSONObject 中提取数据并赋值给成员变量
+                    this.JSESSIONID = jsonObject.getString("JSESSIONID");
+                    this.slyyServletJSESSIONID = jsonObject.getString("JSESSIONID");
+                    this.ss_ctrl = jsonObject.getString("ss_ctrl");
+                    this.xxx = jsonObject.getString("xxx");
+                    this.Referer = jsonObject.getString("Referer");
+                    this.mobileDeviceId = jsonObject.getString("mobileDeviceId");
+                }
+            } catch (Exception e) {
+                // 解析异常，标记使用默认值
+                log.error("解析用户Cookie JSON失败: {}, 将使用随机默认值。", e.getMessage());
+                useDefaultValues = true;
+            }
         }
-        // 4. 调用方法，拼接最终的 Cookie 字符串
+
+        // 4. 如果需要，则设置随机默认值
+        if (useDefaultValues) {
+            this.setDefaultRandomValues();
+        }
+
+        // 5. 调用方法，拼接最终的 Cookie 字符串
         this.setCookie();
     }
+
+
+    /**
+     * 当传入的cookie json为空或解析失败时，设置随机的默认值
+     */
+    private void setDefaultRandomValues() {
+        log.info("正在设置随机默认Cookie值...");
+        String randomUUID32Upper = UUID.randomUUID().toString().replace("-", "").toUpperCase();
+        String randomUUID32Lower = UUID.randomUUID().toString().replace("-", "").toLowerCase();
+        // 模拟一个微信的 openid (28位)
+        String randomOpenId = "os7mus" + RandomUtil.randomString(22);
+
+        this.JSESSIONID = "JSESSIONID=" + randomUUID32Upper;
+        this.slyyServletJSESSIONID = this.JSESSIONID; // 默认情况下可以设为一样
+        this.ss_ctrl = "ss_ctrl=80808198" + RandomUtil.randomString(RandomUtil.BASE_CHAR_NUMBER + "abcdef", 22);
+        this.xxx = " " + randomUUID32Lower + "=WyIz" + RandomUtil.randomNumbers(10) + "Il0";
+        this.mobileDeviceId = "mobileDeviceId=" + randomOpenId;
+        this.Referer = "https://hsn.sinograin.com.cn/mobilexcx/html/main/main.html?hsnParam=" +
+                RandomUtil.randomNumbers(11) + "," +
+                randomUUID32Lower + "," +
+                randomOpenId + "&code=" + RandomUtil.randomString(32) + "&state=main";
+    }
+
 
     public String getMobileDeviceId() {
         if (mobileDeviceId != null && mobileDeviceId.contains("=")) {

@@ -35,4 +35,6 @@ public interface AppointmentProcessorService {
     JSONObject submitAppointment(RequestHeaderUtil headers, PostPointmentDTO dto) throws JsonProcessingException;
 
     boolean preProcessCheck(UserSmsWebSocket user);
+
+    boolean preProcessCheckByReport(UserSmsWebSocket user);
 }

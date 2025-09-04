@@ -356,6 +356,22 @@ public class Modules {
 
 
     /**
+     * 上传车牌号
+     */
+    public JSONObject postCph(UserSmsWebSocket userSmsWebSocket, RequestHeaderUtil requestHeaderUtil) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("nm", "");
+        params.put("cclx",1);
+        params.put("cph",userSmsWebSocket.getVehicleLicensePlateNumber());
+        params.put("clzz",userSmsWebSocket.getFoodOfGrainNum());
+        params.put("xszurl","");
+        params.put("clurl","");
+        params.put("userId",userSmsWebSocket.getUserPhone());
+        params.put("devicetype", "weixin");
+        return util.postForm("/slyyServlet/service/clxxwh/save", requestHeaderUtil, params);
+    }
+
+    /**
      * 上传数据
      *
      * @param data 业务数据部分的JSON对象

@@ -61,6 +61,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
          */
         @Override
         public Map<String, Object> prepareAppointmentData(UserSmsWebSocket user) throws IOException, InterruptedException {
+
             log.info("开始为用户【{}】准备预约提交数据...", user.getUserName());
             try {
                 RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
@@ -159,6 +160,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         log.info("步骤 1/{}: 获取用户信息...", TOTAL_STEPS);
         JSONObject response = function.checkCookieAndGetResponse(user, headers);
         if (response == null || !response.getBooleanValue("success")) {
+//            userSmsWebSocketService.updateTaskStatus();
             log.error("用户【{}】获取用户信息失败或会话无效: {}", user.getUserName(), response);
             return false;
         }
@@ -188,17 +190,30 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         log.info("步骤 2/{}: 获取车辆信息...", TOTAL_STEPS);
         JSONObject response = function.getLicensePlateId(headers, user);
         JSONArray vehicleArray = response.getJSONArray("data");
-        for (int i = 0; i < vehicleArray.size(); i++) {
-            JSONObject vehicleInfo = vehicleArray.getJSONObject(i);
-            if (user.getVehicleLicensePlateNumber().equals(vehicleInfo.getString("cph"))) {
-                dto.setCllxNm(vehicleInfo.getString("cclx"));
-                dto.setCphStr(user.getVehicleLicensePlateNumber() + ",");
-                log.info("用户【{}】匹配到车辆信息: 车牌号={}, 车辆类型={}", user.getUserName(), user.getVehicleLicensePlateNumber(), dto.getCllxNm());
-                return true;
+        if (vehicleArray != null) {
+            for (int i = 0; i < vehicleArray.size(); i++) {
+                JSONObject vehicleInfo = vehicleArray.getJSONObject(i);
+                if (user.getVehicleLicensePlateNumber().equals(vehicleInfo.getString("cph"))) {
+                    dto.setCllxNm(vehicleInfo.getString("cclx"));
+                    dto.setCphStr(user.getVehicleLicensePlateNumber() + ",");
+                    log.info("用户【{}】匹配到车辆信息: 车牌号={}, 车辆类型={}", user.getUserName(), user.getVehicleLicensePlateNumber(), dto.getCllxNm());
+                    return true;
+                }
             }
         }
-        log.error("用户【{}】未在用户车辆列表中找到匹配的车牌号: {}", user.getUserName(), user.getVehicleLicensePlateNumber());
-        return false;
+        // 2. 如果未找到，则执行添加逻辑
+        log.info("用户【{}】的车辆列表未找到车牌号 {}，开始执行添加新车流程...", user.getUserName(), user.getVehicleLicensePlateNumber());
+        JSONObject addVehicleResponse = function.postCPH(user, headers);
+
+        if (addVehicleResponse != null) {
+            dto.setCllxNm("1"); // 使用预定义的常量
+            dto.setCphStr(user.getVehicleLicensePlateNumber() + ",");
+            log.info("用户【{}】成功添加新车牌号 {}。API响应: {}", user.getUserName(), user.getVehicleLicensePlateNumber(),addVehicleResponse);
+            return true; // 添加并设置成功，返回true
+        } else {
+            log.error("用户【{}】添加新车牌号 {} 失败，API返回null。",  user.getUserName(), user.getVehicleLicensePlateNumber());
+            return false;
+        }
     }
 
     /**
@@ -208,6 +223,14 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
     private JSONObject searchAndSetDepotInfo(UserSmsWebSocket user, RequestHeaderUtil headers, PostPointmentDTO dto) {
         log.info("步骤 3/{}: 搜索预约库点信息...", TOTAL_STEPS);
         JSONObject response = function.search(user, headers);
+        if (response == null || !response.containsKey("data")) {
+            log.error("用户【{}】搜索库点信息失败，API返回的响应为空或不包含 'data' 键。", user.getUserName());
+            return null;
+        }
+        JSONArray dataArray = response.getJSONArray("data");
+        if (dataArray == null || dataArray.isEmpty()) {
+            log.error("用户【{}】搜索库点信息未返回有效数据，可能原因：没有符合条件的库点或当前没有可预约的时间段。", user.getUserName());
+        }
         JSONObject depotData = response.getJSONArray("data").getJSONObject(0);
         dto.setZzmc(depotData.getString("zzmc"));
         dto.setZznm(depotData.getString("zznm"));
@@ -216,7 +239,6 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         dto.setLxfs(depotData.getString("lxfs"));
         dto.setRq(depotData.getString("rq"));
         dto.setPznm(depotData.getString("yypznm"));
-
         JSONArray timeSlotArray = depotData.getJSONArray("yypzmxList");
         if (timeSlotArray.isEmpty()) {
             log.error("用户【{}】的预约库点 {} 没有可用的时间段", user.getUserName(), depotData.getString("zzmc"));
@@ -279,6 +301,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
     private boolean handleSmsVerification(UserSmsWebSocket user, RequestHeaderUtil headers, PostPointmentDTO dto) throws IOException, InterruptedException {
         log.info("步骤 7/{}: 处理短信验证码...", TOTAL_STEPS);
         JSONObject checkRe = function.checkData(dto, headers, user);
+
         if (!checkRe.getBoolean("needsms")) {
             dto.setDxyzm("");
             log.info("用户【{}】此次操作无需短信验证。", user.getUserName());
@@ -292,14 +315,17 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
                 Duration duration = Duration.between(latestUser.getUpSmsTime(), LocalDateTime.now());
                 if (duration.getSeconds() <= 30) {
                     dto.setDxyzm(latestUser.getUserSmsMessage());
+                    userSmsWebSocketService.updateTaskStatus(user.getId(),"执行中","用户【"+ user.getUserName() +"】成功获取到有效期内的验证码: "+latestUser.getUserSmsMessage()+"");
                     log.info("用户【{}】成功获取到有效期内的验证码: {}", user.getUserName(), latestUser.getUserSmsMessage());
                     break;
                 } else {
                     dto.setDxyzm("");
-                    log.warn("用户【{}】的验证码已超过30秒有效期，将不使用该验证码。", user.getUserName());
+//                    log.warn("用户【{}】的验证码已超过30秒有效期，将不使用该验证码。", user.getUserName());
                 }
             } else {
                 dto.setDxyzm("");
+                userSmsWebSocketService.updateTaskStatus(user.getId(),"执行中","用户【"+ user.getUserName() +"】需要验证码，但数据库中未找到有效验证码或时间戳。");
+
                 log.warn("用户【{}】需要验证码，但数据库中未找到有效验证码或时间戳。", user.getUserName());
             }
             Thread.sleep(1000);
@@ -396,17 +422,16 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
                 userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "获取用户信息失败或会话无效");
                 return false;
             }
-
             // 预检2: 检查车辆信息
             if (!fetchAndSetVehicleInfo(user, requestHeaderUtil, dto)) {
-                log.error("预检失败：用户【{}】无法匹配到车牌号 {}", user.getUserName(), user.getVehicleLicensePlateNumber());
-                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "未找到匹配的车牌号: " + user.getVehicleLicensePlateNumber());
+                log.error("预检失败：用户【{}】无法匹配到车牌号,并且无法添加车牌号 {}", user.getUserName(), user.getVehicleLicensePlateNumber());
+                userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "未找到匹配的车牌号，并且无法添加车牌号: " + user.getVehicleLicensePlateNumber());
                 return false;
             }
 
             // 预检3: 检查粮库信息
             JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
-            if (depotData == null) {
+            if (depotData == null ) {
                 log.error("预检失败：用户【{}】无法获取有效的粮库信息或可用时间段。", user.getUserName());
                 userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "搜索粮库信息失败或粮库无可用时间");
                 return false;
@@ -425,6 +450,49 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         } catch (Exception e) {
             log.error("为用户【{}】执行预检时发生未预期的异常: ", user.getUserName(), e);
             userSmsWebSocketService.updateTaskStatus(user.getId(), "预检失败", "预检过程中发生异常: " + e.getMessage());
+            return false;
+        }
+    }
+
+
+    @Override
+    public boolean preProcessCheckByReport(UserSmsWebSocket user) {
+        log.info("开始为用户【{}】执行重新预检...", user.getUserName());
+        try {
+            // 初始化必要的数据结构
+            RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
+            PostPointmentDTO dto = new PostPointmentDTO();
+
+            // 预检1: 检查用户信息
+            if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto)) {
+                log.error("重新预检失败：用户【{}】无法获取有效的用户信息。", user.getUserName());
+                userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检失败", "获取用户信息失败或会话无效");
+                return false;
+            }
+
+            // 预检3: 检查粮库信息
+//            JSONObject depotData = searchAndSetDepotInfo(user, requestHeaderUtil, dto);
+//            if (depotData == null) {
+//                log.error("重新预检失败：用户【{}】无法获取有效的粮库信息或可用时间段。", user.getUserName());
+//                userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检失败", "搜索粮库信息失败或粮库无可用时间");
+//                return false;
+//            }
+//
+//            // 预检4: 检查粮食品种
+//            if (!setGrainInfo(user, dto, depotData)) {
+//                log.error("重新预检失败：用户【{}】无法匹配到粮食品种 {}", user.getUserName(), user.getGrainVarieties());
+//                userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检失败", "未找到匹配的粮食品种: " + user.getGrainVarieties());
+//                return false;
+//            }
+
+            log.info("用户【{}】的预约任务重新预检通过。", user.getUserName());
+            user.setTaskStatus("待处理");
+            userSmsWebSocketService.save(user);
+            return true;
+
+        } catch (Exception e) {
+            log.error("为用户【{}】执行重新预检时发生未预期的异常: ", user.getUserName(), e);
+            userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检失败", "预检过程中发生异常: " + e.getMessage());
             return false;
         }
     }

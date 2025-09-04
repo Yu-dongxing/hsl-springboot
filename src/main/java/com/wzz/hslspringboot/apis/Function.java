@@ -9,7 +9,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.wzz.hslspringboot.Captcha.Captcha;
 import com.wzz.hslspringboot.Captcha.CaptchaData;
 import com.wzz.hslspringboot.DTO.PostPointmentDTO;
+import com.wzz.hslspringboot.pojo.NewSysConfig;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
+import com.wzz.hslspringboot.service.SysConfigService;
+import com.wzz.hslspringboot.utils.DateTimeUtil;
 import com.wzz.hslspringboot.utils.RequestHeaderUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,6 +20,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +34,9 @@ public class Function {
 
     @Autowired
     private Modules api;
+
+    @Autowired
+    private SysConfigService sysConfigService;
 
     public Boolean checkCookie(UserSmsWebSocket user, RequestHeaderUtil header) {
         JSONObject re = api.updateCookie(user, header);
@@ -204,6 +213,98 @@ public class Function {
     }
 
     /**
+     * 从配置Map中安全地解析整型值。
+     *
+     * @param configValue  配置Map
+     * @param key          要查找的键
+     * @param defaultValue 解析失败或键不存在时返回的默认值
+     * @return 解析后的整型值或默认值
+     */
+    private int parseConfigInt(Map<String, Object> configValue, String key, int defaultValue) {
+        if (configValue == null || !configValue.containsKey(key)) {
+            return defaultValue;
+        }
+        try {
+            Object value = configValue.get(key);
+            if (value instanceof Number) {
+                return ((Number) value).intValue();
+            }
+            if (value instanceof String) {
+                return Integer.parseInt((String) value);
+            }
+        } catch (Exception e) {
+            log.error("解析系统配置 '{}' 失败，将使用默认值 {}。错误: {}", key, defaultValue, e.getMessage());
+        }
+        return defaultValue;
+    }
+    /**
+     * 从配置Map中安全地解析任何类型的值。
+     *
+     * @param configValue  配置Map
+     * @param key          要查找的键
+     * @param targetType   期望解析的目标类型 (e.g., String.class, Integer.class, Boolean.class)
+     * @param defaultValue 解析失败或键不存在时返回的默认值
+     * @param <T>          泛型类型
+     * @return 解析后的值或默认值
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T parseConfigValue(Map<String, Object> configValue, String key, Class<T> targetType, T defaultValue) {
+        if (configValue == null || !configValue.containsKey(key) || configValue.get(key) == null) {
+            return defaultValue;
+        }
+
+        Object value = configValue.get(key);
+
+        // 1. 如果值的类型已经是目标类型，直接返回
+        if (targetType.isInstance(value)) {
+            return targetType.cast(value);
+        }
+
+        // 2. 尝试进行类型转换
+        try {
+            String stringValue = value.toString().trim();
+            if (stringValue.isEmpty()) {
+                return defaultValue;
+            }
+
+            // 根据目标类型进行转换
+            if (targetType == String.class) {
+                return (T) stringValue;
+            }
+            if (targetType == Integer.class || targetType == int.class) {
+                return (T) Integer.valueOf(stringValue);
+            }
+            if (targetType == Long.class || targetType == long.class) {
+                return (T) Long.valueOf(stringValue);
+            }
+            if (targetType == Double.class || targetType == double.class) {
+                return (T) Double.valueOf(stringValue);
+            }
+            if (targetType == Float.class || targetType == float.class) {
+                return (T) Float.valueOf(stringValue);
+            }
+            if (targetType == Boolean.class || targetType == boolean.class) {
+                // "true" (不区分大小写) 被认为是 true, 其他所有值都是 false
+                return (T) Boolean.valueOf(stringValue);
+            }
+            if (targetType == BigDecimal.class) {
+                return (T) new BigDecimal(stringValue);
+            }
+            // 可以根据需要添加更多类型转换，例如 Date, List 等
+
+            log.warn("不支持将类型 '{}' 转换为 '{}'，键: '{}'。将尝试强制转换。", value.getClass().getName(), targetType.getName(), key);
+            // 3. 最后的尝试：强制转换
+            return (T) value;
+
+        } catch (Exception e) {
+            log.error("解析系统配置 '{}' (期望类型: {}) 失败，将使用默认值 '{}'。原始值: '{}', 错误: {}",
+                    key, targetType.getSimpleName(), defaultValue, value, e.getMessage());
+            return defaultValue;
+        }
+    }
+
+
+    /**
      * 获取图片验证码
      * 发送手机验证码
      */
@@ -212,19 +313,39 @@ public class Function {
         JSONObject dataObject = aaa.getJSONObject("data");
         Boolean needsms = dataObject.getBoolean("needsms");
         JSONObject reJson = new JSONObject();
-        // 打印结果
+        NewSysConfig co = sysConfigService.getConfigByName("sys_config");
+        Map<String, Object> configValue = (co != null) ? co.getConfigValue() : null;
+        int tpyzm = parseConfigInt(configValue,"image_verification_code_retries",10);
+        int dxyzm = parseConfigInt(configValue,"number_of_SMS_verification_code_retries",10);
+        //String dxyzmTimeStr  =  parseConfigValue(configValue,"sms_ code_time",String.class, "2025-01-01 00:00:00");
+        String dxyzmTimeStr = u.getSmsCodeTime();
+
         log.info("成功解析到 'needsms' 的值为: {}", needsms);
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < tpyzm; i++) {
             String uuid = getUUID(requestHeaderUtil);
             postPointmentDTO.setUuid(uuid);
             if (uuid != null) {
                 if (needsms) {
-                    JSONObject re = sendSmsCode(postPointmentDTO, requestHeaderUtil, u);
-                    if (re != null && re.getJSONObject("data").getInteger("resultCode") == 1) {
-                        reJson.put("needsms", needsms);
-                        reJson.put("status", 200);
-                        return reJson;
+                    for (int j = 0; j < dxyzm; j++) {
+                        LocalDateTime dxyzmTime = DateTimeUtil.parseDateTime(dxyzmTimeStr);
+                        LocalDateTime now = LocalDateTime.now();
+                        if (now.isBefore(dxyzmTime)) {
+                            long millisToWait = Duration.between(now, dxyzmTime).toMillis();
+                            if (millisToWait > 0) {
+                                log.info("短信验证码延时:{}",millisToWait);
+                                Thread.sleep(millisToWait);
+                            }
+                        }
+                        JSONObject re = sendSmsCode(postPointmentDTO, requestHeaderUtil, u);
+                        if (re != null && re.getJSONObject("data").getInteger("resultCode") == 1) {
+                            reJson.put("needsms", needsms);
+                            reJson.put("status", 200);
+                            return reJson;
+                        }
                     }
+                    reJson.put("needsms", needsms);
+                    reJson.put("status", 500);
+                    return reJson;
                 }
                 reJson.put("needsms", needsms);
                 reJson.put("status", 200);
@@ -463,6 +584,14 @@ public class Function {
         JSONObject re = api.getDistanceByCurrentLocation(lkdm,lklongitude,lklatitude,u,requestHeaderUtil);
         return re;
     }
+    /**
+     * 上传车牌号！
+     */
+    public JSONObject postCPH(UserSmsWebSocket userSmsWebSocket,RequestHeaderUtil requestHeaderUtil){
+        JSONObject re  = api.postCph(userSmsWebSocket,requestHeaderUtil);
+        return re;
+    }
+
 
 
 

@@ -73,7 +73,6 @@ public class EncryptionUtil {
      * 这是实例方法，因为它使用了实例变量 publicKey
      */
     public String rsa(PostPointmentDTO post) {
-        post.setSl("1");
         log.info("准备加密的数据DTO：{}", post);
         String str = post.getPhone() + "i" + post.getPznm() + "n" + post.getPzmxnm() + "s" + post.getSfz() + "p" + post.getRq() + "u" + post.getCphStr() + "r"
                 + post.getZznm() + post.getUuid() + post.getDxyzm() + post.getYyfsnm() + post.getYyfsmc();
@@ -85,7 +84,6 @@ public class EncryptionUtil {
         return encryptedBase64;
     }
     public String secretParams(PostPointmentDTO post) throws JsonProcessingException {
-        post.setSl("1");
         String str= objectMapper.writeValueAsString(post);
         System.out.println("加密前的数据："+str);
         RSA rsa = new RSA(null, pubKeyGlobal);

@@ -42,8 +42,8 @@ public class DateTimeUtil {
      */
     public static LocalDateTime parseDateTime(String dateTimeStr) {
         if (dateTimeStr == null || dateTimeStr.trim().isEmpty()) {
-            log.warn("输入日期字符串为空");
-            return null;
+            log.warn("输入日期字符串为空,返回当前时间");
+            return LocalDateTime.now();
         }
 
         String trimmedDateTimeStr = dateTimeStr.trim();

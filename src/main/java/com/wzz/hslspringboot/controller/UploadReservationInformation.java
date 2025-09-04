@@ -4,6 +4,7 @@ package com.wzz.hslspringboot.controller;
 
 import com.wzz.hslspringboot.DTO.Result;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
+import com.wzz.hslspringboot.service.AppointmentProcessorService;
 import com.wzz.hslspringboot.service.UserSmsWebSocketService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.PrimitiveIterator;
 
 /**
  * 预约信息接口控制
@@ -22,6 +24,10 @@ public class UploadReservationInformation {
     private static final Logger log = LogManager.getLogger(UploadReservationInformation.class);
     @Autowired
     private UserSmsWebSocketService userSmsWebSocketService;
+
+
+    @Autowired
+    private AppointmentProcessorService appointmentProcessorService;
     /**
      * 上传预约信息
      */
@@ -88,6 +94,23 @@ public class UploadReservationInformation {
         userSmsWebSocketService.deleteById(id);
         return Result.success("删除成功");
     }
+    /**
+     * 根据id重新预检
+     */
+    @GetMapping("/preflight/{id}")
+    public Result<?> preflightById (@PathVariable Long id) {
+        UserSmsWebSocket u = userSmsWebSocketService.getById(id);
+        if (u == null) {
+            return Result.error("没有该数据！");
+        }
+        boolean is = appointmentProcessorService.preProcessCheckByReport(u);
+        if (is) {
+            return Result.success("重新预检成功！");
+        }
+
+        return Result.error("重新预检错误！");
+    }
+
 
 
 }

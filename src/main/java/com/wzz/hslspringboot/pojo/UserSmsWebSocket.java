@@ -154,4 +154,16 @@ public class UserSmsWebSocket {
      */
     @TableField("food_of_grain_num")
     private String foodOfGrainNum;
+    /**
+     * 用户预约详情日志
+     */
+    @TableField("user_log_info")
+    @ColumnType("TEXT")
+    private String userLogInfo;
+
+    /**
+     * 短信验证码定时时间
+     */
+    @TableField("sms_code_time")
+    private String smsCodeTime;
 }

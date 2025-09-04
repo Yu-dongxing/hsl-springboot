@@ -110,19 +110,18 @@ public class PostYyTask {
                 userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_INVALID_TIME, "预约时间格式错误: " + e.getMessage());
                 continue;
             }
-
-            try {
-                log.info("对用户ID: {} 的任务进行预检...", user.getId());
-                if (!appointmentProcessorService.preProcessCheck(user)) {
-                    log.warn("用户ID: {} 的任务未能通过预检，将不会被调度。", user.getId());
-                    continue;
-                }
-                log.info("用户ID: {} 的任务通过预检。", user.getId());
-            } catch (Exception e) {
-                log.error("对用户ID: {} 的任务进行预检时发生严重异常，任务将不会被调度。", user.getId(), e);
-                userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_PRECHECK_FAILED, "预检时发生未知异常: " + e.getMessage());
-                continue;
-            }
+//            try {
+//                log.info("对用户ID: {} 的任务进行预检...", user.getId());
+//                if (!appointmentProcessorService.preProcessCheck(user)) {
+//                    log.warn("用户ID: {} 的任务未能通过预检，将不会被调度。", user.getId());
+//                    continue;
+//                }
+//                log.info("用户ID: {} 的任务通过预检。", user.getId());
+//            } catch (Exception e) {
+//                log.error("对用户ID: {} 的任务进行预检时发生严重异常，任务将不会被调度。", user.getId(), e);
+//                userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_PRECHECK_FAILED, "预检时发生未知异常: " + e.getMessage());
+//                continue;
+//            }
 
             long advanceMillis = yzmTimeS * 1000L;
             long initialDelayMillis = Duration.between(LocalDateTime.now(), appointmentDateTime).toMillis();
@@ -131,16 +130,13 @@ public class PostYyTask {
             if (delayMillis < 0) {
                 delayMillis = 0;
             }
-
             try {
                 final int effectiveMaxRetries = maxRetries;
                 final int effectiveRetriesTime = retriesTime;
                 Future<?> future = scheduler.schedule(() -> executeAppointmentWithRetries(user, effectiveMaxRetries, effectiveRetriesTime), delayMillis, TimeUnit.MILLISECONDS);
-
                 scheduledTasks.put(user.getId(), future);
                 userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_SCHEDULED, "任务已进入调度队列，等待执行。");
                 log.info("用户ID: {} 的任务已成功调度，将在 {} 毫秒后执行（已提前 {} 秒），最大重试次数: {}。", user.getId(), delayMillis, yzmTimeS, effectiveMaxRetries);
-
             } catch (Exception e) {
                 log.error("调度用户ID: {} 的任务时发生异常。", user.getId(), e);
                 userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_FAILED, "任务调度失败: " + e.getMessage());
@@ -165,6 +161,9 @@ public class PostYyTask {
             scheduledTasks.remove(user.getId()); // 从调度Map中移除，防止内存泄漏
             return; // 终止执行
         }
+        log.info("清空之前日志。。。。");
+        userSmsWebSocketService.clearUserLogInfoById(user.getId());
+        log.info("清空之前日志>>结束");
 
         Map<String, Object> preparedData;
         try {
@@ -176,17 +175,15 @@ public class PostYyTask {
             PostPointmentDTO dto = (PostPointmentDTO) preparedData.get("dto");
             // 核心校验：根据需求，如果准备阶段未能获取到uuid，则视为失败
             if (dto == null || StrUtil.isBlank(dto.getUuid())) {
-                throw new BusinessException(0,"数据准备失败：未能获取到有效的短信流程UUID。");
+                throw new BusinessException(0,"数据准备失败：未能获取到有效的短信验证码。");
             }
             log.info("【阶段1/3】用户ID: {} 的预约数据准备成功。", user.getId());
-
         } catch (Exception e) {
             log.error("用户ID: {} 在[数据准备阶段]失败，任务终止。", user.getId(), e);
             userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_FAILED, "数据准备失败: " + e.getMessage());
             scheduledTasks.remove(user.getId());
-            return; // 准备失败，直接返回，不进行重试
+            return;
         }
-
         try {
             // ================== 2. 精确时间等待阶段 ==================
             LocalDateTime appointmentDateTime = DateTimeUtil.parseDateTime(user.getAppointmentTime());

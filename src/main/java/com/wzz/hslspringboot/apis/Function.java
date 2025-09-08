@@ -211,7 +211,7 @@ public class Function {
             JSONObject qqqq = ew.getJson();
             log.info("<获取图片或滑动验证码>:{}", qqqq.toString());
             JSONObject sa = checkCaptcha(requestHeaderUtil, qqqq.toString());
-            log.info("<<UNK>::::::>:{}", sa.toString());
+            log.info("<<检查图片或滑动验证码>::::::>:{}", sa.toString());
             return sa.getJSONObject("data").getString("uuid");
         }
         return null;
@@ -314,14 +314,16 @@ public class Function {
      * 发送手机验证码
      */
     public JSONObject checkData(PostPointmentDTO postPointmentDTO, RequestHeaderUtil requestHeaderUtil, UserSmsWebSocket u) throws IOException, InterruptedException {
-        JSONObject aaa = getSmsBooles(postPointmentDTO, requestHeaderUtil);
-        JSONObject dataObject = aaa.getJSONObject("data");
-        Boolean needsms = dataObject.getBoolean("needsms");
-        JSONObject reJson = new JSONObject();
         NewSysConfig co = sysConfigService.getConfigByName("sys_config");
         Map<String, Object> configValue = (co != null) ? co.getConfigValue() : null;
         int tpyzm = parseConfigInt(configValue,"image_verification_code_retries",10);
         int dxyzm = parseConfigInt(configValue,"number_of_SMS_verification_code_retries",10);
+        Boolean is_sms = parseConfigValue(configValue,"is_sms",Boolean.class ,true);
+        JSONObject aaa = getSmsBooles(postPointmentDTO, requestHeaderUtil);
+        JSONObject dataObject = aaa.getJSONObject("data");
+        Boolean needsms = dataObject.getBoolean("needsms");
+        JSONObject reJson = new JSONObject();
+
         //String dxyzmTimeStr  =  parseConfigValue(configValue,"sms_ code_time",String.class, "2025-01-01 00:00:00");
         String dxyzmTimeStr = u.getSmsCodeTime();
 
@@ -331,26 +333,31 @@ public class Function {
             postPointmentDTO.setUuid(uuid);
             if (uuid != null) {
                 if (needsms) {
-                    for (int j = 0; j < dxyzm; j++) {
-                        LocalDateTime dxyzmTime = DateTimeUtil.parseDateTime(dxyzmTimeStr);
-                        LocalDateTime now = LocalDateTime.now();
-                        if (now.isBefore(dxyzmTime)) {
-                            long millisToWait = Duration.between(now, dxyzmTime).toMillis();
-                            if (millisToWait > 0) {
-                                log.info("短信验证码延时:{}",millisToWait);
-                                Thread.sleep(millisToWait);
-                            }
-                        }
+                    log.info("发送短信验证码延时5秒发送");
+                    //由于重试发送验证码时 必须更新uuid 所以把for删除了 替换为continue 重试的时候重新验证验证码 并且以为发送验证码的时候可能提示频繁所以加上了3秒延时（只是一个测试）
+                    Thread.sleep(5000);
+//                        LocalDateTime dxyzmTime = DateTimeUtil.parseDateTime(dxyzmTimeStr);
+//                        LocalDateTime now = LocalDateTime.now();
+//                        if (now.isBefore(dxyzmTime)) {
+//                            long millisToWait = Duration.between(now, dxyzmTime).toMillis();
+//                            if (millisToWait > 0) {
+//                                log.info("短信验证码定时:{}",millisToWait);
+//                                Thread.sleep(millisToWait);
+//                            }
+//                        }
                         JSONObject re = sendSmsCode(postPointmentDTO, requestHeaderUtil, u);
+                        log.info("发送短信验证码：{}",re);
                         if (re != null && re.getJSONObject("data").getInteger("resultCode") == 1) {
+                            reJson.put("msg", re);
                             reJson.put("needsms", needsms);
                             reJson.put("status", 200);
                             return reJson;
+                        }else {
+                            reJson.put("msg", re);
+                            reJson.put("needsms", needsms);
+                            reJson.put("status", 500);
+                            continue;
                         }
-                    }
-                    reJson.put("needsms", needsms);
-                    reJson.put("status", 500);
-                    return reJson;
                 }
                 reJson.put("needsms", needsms);
                 reJson.put("status", 200);
@@ -361,6 +368,70 @@ public class Function {
         reJson.put("status", 500);
         return reJson;
     }
+
+
+    /**
+     * 获取图片验证码
+     * 发送手机验证码
+     */
+    public JSONObject checkData(PostPointmentDTO postPointmentDTO, RequestHeaderUtil requestHeaderUtil, UserSmsWebSocket u,int g) throws IOException, InterruptedException {
+        NewSysConfig co = sysConfigService.getConfigByName("sys_config");
+        Map<String, Object> configValue = (co != null) ? co.getConfigValue() : null;
+        int tpyzm = parseConfigInt(configValue,"image_verification_code_retries",10);
+        int dxyzm = parseConfigInt(configValue,"number_of_SMS_verification_code_retries",10);
+        Boolean is_sms = parseConfigValue(configValue,"is_sms",Boolean.class ,true);
+        //TODO 调试结束后需要去除这一行  且前端修复一下两个开关
+        is_sms=false;
+        JSONObject aaa = getSmsBooles(postPointmentDTO, requestHeaderUtil);
+        JSONObject dataObject = aaa.getJSONObject("data");
+        Boolean needsms = dataObject.getBoolean("needsms");
+        JSONObject reJson = new JSONObject();
+
+        //String dxyzmTimeStr  =  parseConfigValue(configValue,"sms_ code_time",String.class, "2025-01-01 00:00:00");
+        String dxyzmTimeStr = u.getSmsCodeTime();
+
+        log.info("成功解析到 'needsms' 的值为: {}", needsms);
+        for (int i = 0; i < tpyzm; i++) {
+            String uuid = getUUID(requestHeaderUtil);
+            postPointmentDTO.setUuid(uuid);
+            if (uuid != null) {
+                if (needsms&&is_sms) {
+                    log.info("发送短信验证码延时5秒发送");
+                    //由于重试发送验证码时 必须更新uuid 所以把for删除了 替换为continue 重试的时候重新验证验证码 并且以为发送验证码的时候可能提示频繁所以加上了3秒延时（只是一个测试）
+                    Thread.sleep(5000);
+                    LocalDateTime dxyzmTime = DateTimeUtil.parseDateTime(dxyzmTimeStr);
+                    LocalDateTime now = LocalDateTime.now();
+                    if (now.isBefore(dxyzmTime)) {
+                        long millisToWait = Duration.between(now, dxyzmTime).toMillis();
+                        if (millisToWait > 0) {
+                            log.info("短信验证码定时:{}",millisToWait);
+                            Thread.sleep(millisToWait);
+                        }
+                    }
+                    JSONObject re = sendSmsCode(postPointmentDTO, requestHeaderUtil, u);
+                    log.info("发送短信验证码：{}",re);
+                    if (re != null && re.getJSONObject("data").getInteger("resultCode") == 1) {
+                        reJson.put("msg", re);
+                        reJson.put("needsms", needsms);
+                        reJson.put("status", 200);
+                        return reJson;
+                    }else {
+                        reJson.put("msg", re);
+                        reJson.put("needsms", needsms);
+                        reJson.put("status", 500);
+                        continue;
+                    }
+                }
+                reJson.put("needsms", needsms);
+                reJson.put("status", 200);
+                return reJson;
+            }
+        }
+        reJson.put("needsms", needsms);
+        reJson.put("status", 500);
+        return reJson;
+    }
+
 
     public int calculateManually(String expression) {
 
@@ -393,7 +464,6 @@ public class Function {
             case "x":
                 return num1 * num2;
             default:
-                // 不会执行到这里
                 throw new IllegalStateException("代码逻辑错误");
         }
     }

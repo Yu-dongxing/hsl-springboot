@@ -35,7 +35,7 @@ public class PostPointmentDTO {
     private String tzdbh;
     private String userType;
     private String uuid;
-    private String wxdlFlag;
+    private boolean wxdlFlag;
     private String xydm;
     private String ywlx;
     private String yyfsmc;

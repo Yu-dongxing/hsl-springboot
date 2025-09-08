@@ -21,12 +21,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.concurrent.ExecutorService;
 
 
 @Component
@@ -49,6 +51,12 @@ class HslSpringbootApplicationTests {
     private UserSmsWebSocketService userSmsWebSocketService;
 
     EncryptionUtil encryptionUtil = new EncryptionUtil();
+    @Autowired
+    @Qualifier("virtualThreadTaskExecutor")
+    private ExecutorService taskProcessorExecutor;
+
+
+
 
 //    @Test
 //    void contextLoads() throws InterruptedException, IOException {

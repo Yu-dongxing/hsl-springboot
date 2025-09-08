@@ -2,8 +2,11 @@ package com.wzz.hslspringboot.Captcha;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class CaptchaData {
+    private static final Logger log = LogManager.getLogger(CaptchaData.class);
     private String backgroundImageTag;
     private String templateImageTag;
     private String backgroundImage;
@@ -25,16 +28,25 @@ public class CaptchaData {
 
 
     public CaptchaData(JSONObject jsonObject) {
-        this.backgroundImageTag = jsonObject.getJSONObject("captcha").getString("backgroundImageTag");
-        this.templateImageTag = jsonObject.getJSONObject("captcha").getString("templateImageTag");
-        this.backgroundImage = jsonObject.getJSONObject("captcha").getString("backgroundImage");
-        this.templateImage = jsonObject.getJSONObject("captcha").getString("templateImage");
-        this.type = jsonObject.getJSONObject("captcha").getString("type");
+        JSONObject captcha = jsonObject.getJSONObject("captcha");
+        if (captcha != null) {
+            this.backgroundImageTag = captcha.getString("backgroundImageTag");
+            this.templateImageTag = captcha.getString("templateImageTag");
+            this.backgroundImage = captcha.getString("backgroundImage");
+            this.templateImage = captcha.getString("templateImage");
+            this.type = captcha.getString("type");
+            this.templateImageWidth = captcha.getIntValue("templateImageWidth");
+            this.templateImageHeight = captcha.getIntValue("templateImageHeight");
+            this.backgroundImageHeight = captcha.getIntValue("backgroundImageHeight");
+            this.backgroundImageWidth = captcha.getIntValue("backgroundImageWidth");
+        } else {
+            this.templateImageWidth = 0;
+            this.templateImageHeight = 0;
+            this.backgroundImageHeight = 0;
+            this.backgroundImageWidth = 0;
+            log.warn("警告: 传入的JSON中缺少 'captcha' 对象。");
+        }
         this.id = jsonObject.getString("id");
-        this.templateImageWidth = jsonObject.getJSONObject("captcha").getInteger("templateImageWidth");
-        this.templateImageHeight = jsonObject.getJSONObject("captcha").getInteger("templateImageHeight");
-        this.backgroundImageHeight = jsonObject.getJSONObject("captcha").getInteger("backgroundImageHeight");
-        this.backgroundImageWidth = jsonObject.getJSONObject("captcha").getInteger("backgroundImageWidth");
         this.data = jsonObject.get("data");
     }
     public JSONObject getJson(){

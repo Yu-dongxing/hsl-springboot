@@ -45,6 +45,16 @@ public class Modules {
         return util.postForm("/slyyServlet/service/nhyy/getResvKdListBySearch",requestHeaderUtil,se.get());
     }
 
+    /**
+     * 粮库
+     *   POST /slyyServlet/service/nhyy/getResvKdList
+     *   接口ID：337567046
+     */
+    public JSONObject getResvKdList(UserSmsWebSocket userSmsWebSocket, RequestHeaderUtil requestHeaderUtil){
+        SearchResvKdListDTO se = new SearchResvKdListDTO(userSmsWebSocket);
+        return util.postForm("/slyyServlet/service/nhyy/getResvKdList",requestHeaderUtil,se.get());
+    }
+
 
     /**
      * 获取randomcode

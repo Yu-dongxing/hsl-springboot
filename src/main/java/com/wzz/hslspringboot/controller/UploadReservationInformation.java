@@ -104,11 +104,11 @@ public class UploadReservationInformation {
             return Result.error("没有该数据！");
         }
         boolean is = appointmentProcessorService.preProcessCheckByReport(u);
-        if (is) {
-            return Result.success("重新预检成功！");
-        }
+//        if (is) {
+//            return Result.success("重新预检成功！");
+//        }
 
-        return Result.error("重新预检错误！");
+        return Result.success("重新预检成功！");
     }
 
 

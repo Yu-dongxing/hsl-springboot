@@ -32,7 +32,9 @@ public interface AppointmentProcessorService {
 
     Map<String, Object> prepareAppointmentData(UserSmsWebSocket user) throws IOException, InterruptedException;
 
-    JSONObject submitAppointment(RequestHeaderUtil headers, PostPointmentDTO dto) throws JsonProcessingException;
+    JSONObject submitAppointment(RequestHeaderUtil headers, PostPointmentDTO dto,UserSmsWebSocket user) throws JsonProcessingException;
+
+    JSONObject submitAppointment(RequestHeaderUtil headers, PostPointmentDTO dto, UserSmsWebSocket user, int f) throws IOException, InterruptedException;
 
     boolean preProcessCheck(UserSmsWebSocket user);
 

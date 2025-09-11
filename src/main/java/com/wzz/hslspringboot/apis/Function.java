@@ -371,17 +371,12 @@ public class Function {
         NewSysConfig co = sysConfigService.getConfigByName("sys_config");
         Map<String, Object> configValue = (co != null) ? co.getConfigValue() : null;
         int tpyzm = parseConfigInt(configValue,"image_verification_code_retries",10);
-        int dxyzm = parseConfigInt(configValue,"number_of_SMS_verification_code_retries",10);
         Boolean is_sms = parseConfigValue(configValue,"is_sms",Boolean.class ,true);
         //TODO 调试结束后需要去除这一行  且前端修复一下两个开关
-        is_sms=false;
         JSONObject aaa = getSmsBooles(postPointmentDTO, requestHeaderUtil);
         JSONObject dataObject = aaa.getJSONObject("data");
         Boolean needsms = dataObject.getBoolean("needsms");
         JSONObject reJson = new JSONObject();
-
-        //String dxyzmTimeStr  =  parseConfigValue(configValue,"sms_ code_time",String.class, "2025-01-01 00:00:00");
-        String dxyzmTimeStr = u.getSmsCodeTime();
 
         log.info("成功解析到 'needsms' 的值为: {}", needsms);
         for (int i = 0; i < tpyzm; i++) {

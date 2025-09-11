@@ -310,12 +310,12 @@ public class Modules {
      */
     public JSONObject getSliderCaptcha(RequestHeaderUtil requestHeaderUtil) {
         // 根据文档，请求体为空对象
-        return util.postJson("/slyyServlet/service/captcha/getCaptcha", requestHeaderUtil, null);
+        return util.postJson("/slyyServlet/service/captcha/getCaptcha", requestHeaderUtil, "{}");
     }
 
     /**
      * 验证验证码(滑块)
-     * POST /slyyServlet/service/captcha/checkCaptcha
+     * POST https://hsn.sinograin.com.cn/slyyServlet//service/captcha/getCaptcha
      * 接口ID：340218782
      * 接口地址：https://app.apifox.com/link/project/6997949/apis/api-340218782
      * @param requestHeaderUtil 请求头工具
@@ -341,7 +341,9 @@ public class Modules {
      */
     public JSONObject getWordClickCaptcha(RequestHeaderUtil requestHeaderUtil) {
         // 根据文档，此接口与获取滑块验证码的请求完全相同
-        return util.postJson("/slyyServlet/service/captcha/getCaptcha", requestHeaderUtil, "{}");
+        JSONObject data = new JSONObject();
+        data.put("bgImageWidth", 242);
+        return util.postJson("/slyyServlet/service/captcha/getCaptcha", requestHeaderUtil, data.toString());
     }
 
 

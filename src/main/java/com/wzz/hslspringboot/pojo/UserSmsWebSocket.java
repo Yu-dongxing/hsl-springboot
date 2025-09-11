@@ -166,4 +166,15 @@ public class UserSmsWebSocket {
      */
     @TableField("sms_code_time")
     private String smsCodeTime;
+    /**
+     * 需求图片验证码的状态
+     */
+    @TableField("need_captcha")
+    private String needCaptcha;
+    /**
+     * 用户验证的uuid
+     */
+    @TableField("uuid")
+    private String uuid;
+
 }

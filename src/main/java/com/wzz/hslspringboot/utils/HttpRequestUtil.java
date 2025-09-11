@@ -78,7 +78,7 @@ public class HttpRequestUtil {
 
             if (response.isOk()) {
                 // 关键：验证码请求通常会设置session，所以必须处理Cookie
-                headers.setCookie(response);
+                //headers.setCookie(response);
                 set(headers);
 
                 // 核心区别：使用 bodyBytes() 直接获取原始字节数据
@@ -166,12 +166,10 @@ public class HttpRequestUtil {
     public JSONObject postJson(String urlPath, RequestHeaderUtil headers, String jsonBody) {
         String fullUrl = baseUrl + urlPath;
         HttpRequest request = HttpUtil.createPost(fullUrl);
-        if (StrUtil.isNotBlank(jsonBody)) {
+
             request.body(jsonBody);
             request.header("Content-Type", "application/json;charset=UTF-8");
-            request.addHeaders(headers.getHeader());
-            // Hutool 会自动设置 Content-Type 为 application/json
-        }
+
         log.info("发送POST JSON请求: [{}]", request.toString());
         return executeRequest(request, headers);
     }
@@ -180,13 +178,17 @@ public class HttpRequestUtil {
      *
      */
     public void set(RequestHeaderUtil headers) {
-        UserSmsWebSocket u =  userSmsWebSocketService.selectByDeviceId(headers.getMobileDeviceId());
+        UserSmsWebSocket u =  userSmsWebSocketService.getByPhone(headers.getPhone());
+        System.out.println(headers.getPhone()+"查询结果:"+u);
         if(u!=null){
-            JSONObject j =JSONObject.parseObject(u.getUserCookie());
+            JSONObject j =JSONObject.parseObject(u.getUserCookie()==null?"{}":u.getUserCookie());
             j.put("JSESSIONID",headers.getJSESSIONID());
+            j.put("getSlyyServletJSESSIONID",headers.getSlyyServletJSESSIONID());
             j.put("ss_ctrl",headers.getSs_ctrl());
             j.put("xxx",headers.getXxx());
-            u.setUserCookie(j.toJSONString());
+            j.put("mobileDeviceId",headers.getMobileDeviceId());
+            j.put("Referer",headers.getReferer());
+        u.setUserCookie(j.toJSONString());
             userSmsWebSocketService.save(u);
         }
     }
@@ -251,8 +253,10 @@ public class HttpRequestUtil {
 
             // 请求成功 (HTTP状态码 2xx)
             if (response.isOk()) {
-                headers.setCookie(response);
-                set(headers);
+                //headers.setCookie(response);
+                if (headers != null) {
+                    set(headers);
+                }
                 String body = response.body();
 
                 log.info("请求成功 to [{}], HTTP 状态码: {}, Response Body Length: {} ,Body: {}", request.getUrl(), response.getStatus(), body.length(),StrUtil.brief(body, 10000));
@@ -354,7 +358,7 @@ public class HttpRequestUtil {
                 Map<String, List<String>> headerFields = conn.getHeaderFields();
                 List<String> cookies = headerFields.get("Set-Cookie");
                 if (cookies != null && !cookies.isEmpty()) {
-                    headers.setCookie((HttpResponse) cookies);
+                    //headers.setCookie((HttpResponse) cookies);
                     set(headers);
                 }
 

@@ -350,6 +350,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
     private boolean handleSmsVerification(UserSmsWebSocket user, RequestHeaderUtil headers, PostPointmentDTO dto,boolean is_sms) throws IOException, InterruptedException {
         log.info(logs, user.getId(),"步骤 7/{}: 处理短信验证码...", TOTAL_STEPS);
 
+
         JSONObject checkRe = null;
         try {
             //is_sms是此方法新增的
@@ -460,6 +461,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         log.info(logs, user.getId(),"开始为用户【{}】执行预约任务预检...", user.getUserName());
         try {
             RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
+            requestHeaderUtil.setPhone(user.getUserPhone());
             PostPointmentDTO dto = new PostPointmentDTO();
 
             // 预检1 (关键检查): 检查用户信息
@@ -504,7 +506,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         try {
             RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
             PostPointmentDTO dto = new PostPointmentDTO();
-
+            requestHeaderUtil.setPhone(user.getUserPhone());
             // 预检1 (关键检查): 检查用户信息
             if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto)) {
                  log.err(logs, user.getId(),"重新预检失败：用户【{}】无法获取有效的用户信息。", user.getUserName());

@@ -12,6 +12,7 @@ import com.wzz.hslspringboot.DTO.PostPointmentDTO;
 import com.wzz.hslspringboot.pojo.NewSysConfig;
 import com.wzz.hslspringboot.pojo.UserSmsWebSocket;
 import com.wzz.hslspringboot.service.SysConfigService;
+import com.wzz.hslspringboot.service.UserSmsWebSocketService;
 import com.wzz.hslspringboot.utils.DateTimeUtil;
 import com.wzz.hslspringboot.utils.RequestHeaderUtil;
 import org.apache.logging.log4j.LogManager;
@@ -32,6 +33,8 @@ public class Function {
     private static final Logger log = LogManager.getLogger(Function.class);
 //    Modules api = new Modules();
 
+    @Autowired
+    private UserSmsWebSocketService userSmsWebSocketService;
     @Autowired
     private Modules api;
 
@@ -202,17 +205,17 @@ public class Function {
     }
 
     public String getUUID(RequestHeaderUtil requestHeaderUtil) throws IOException, InterruptedException {
-        JSONObject rrrr = getCaptcha(requestHeaderUtil);
-        log.info("<获取图片或滑动验证码::::::>:{}", rrrr);
-        CaptchaData ew = new CaptchaData(rrrr);
-        new Captcha(ew);
-        if (ew.getStatus() == 200) {
-            //Thread.sleep(5000);
-            JSONObject qqqq = ew.getJson();
-            log.info("<获取图片或滑动验证码>:{}", qqqq.toString());
-            JSONObject sa = checkCaptcha(requestHeaderUtil, qqqq.toString());
-            log.info("<<检查图片或滑动验证码>::::::>:{}", sa.toString());
-            return sa.getJSONObject("data").getString("uuid");
+        UserSmsWebSocket user= userSmsWebSocketService.getByPhone(requestHeaderUtil.getPhone());
+        user.setNeedCaptcha("1");
+        user.setUuid(null);
+        userSmsWebSocketService.save(user);
+        log.info("<向数据库发送图形验证码需求::::::>:{}",user.getUserName());
+        for (int i = 0; i < 30; i++) {
+            UserSmsWebSocket users= userSmsWebSocketService.getByPhone(requestHeaderUtil.getPhone());
+            if (users.getUuid()!=null){
+                return users.getUuid();
+            }
+            Thread.sleep(1000);
         }
         return null;
     }
@@ -335,16 +338,6 @@ public class Function {
                 if (needsms) {
                     log.info("发送短信验证码延时5秒发送");
                     //由于重试发送验证码时 必须更新uuid 所以把for删除了 替换为continue 重试的时候重新验证验证码 并且以为发送验证码的时候可能提示频繁所以加上了3秒延时（只是一个测试）
-                    Thread.sleep(5000);
-//                        LocalDateTime dxyzmTime = DateTimeUtil.parseDateTime(dxyzmTimeStr);
-//                        LocalDateTime now = LocalDateTime.now();
-//                        if (now.isBefore(dxyzmTime)) {
-//                            long millisToWait = Duration.between(now, dxyzmTime).toMillis();
-//                            if (millisToWait > 0) {
-//                                log.info("短信验证码定时:{}",millisToWait);
-//                                Thread.sleep(millisToWait);
-//                            }
-//                        }
                         JSONObject re = sendSmsCode(postPointmentDTO, requestHeaderUtil, u);
                         log.info("发送短信验证码：{}",re);
                         if (re != null && re.getJSONObject("data").getInteger("resultCode") == 1) {
@@ -398,16 +391,6 @@ public class Function {
                 if (needsms&&is_sms) {
                     log.info("发送短信验证码延时5秒发送");
                     //由于重试发送验证码时 必须更新uuid 所以把for删除了 替换为continue 重试的时候重新验证验证码 并且以为发送验证码的时候可能提示频繁所以加上了3秒延时（只是一个测试）
-                    Thread.sleep(5000);
-                    LocalDateTime dxyzmTime = DateTimeUtil.parseDateTime(dxyzmTimeStr);
-                    LocalDateTime now = LocalDateTime.now();
-                    if (now.isBefore(dxyzmTime)) {
-                        long millisToWait = Duration.between(now, dxyzmTime).toMillis();
-                        if (millisToWait > 0) {
-                            log.info("短信验证码定时:{}",millisToWait);
-                            Thread.sleep(millisToWait);
-                        }
-                    }
                     JSONObject re = sendSmsCode(postPointmentDTO, requestHeaderUtil, u);
                     log.info("发送短信验证码：{}",re);
                     if (re != null && re.getJSONObject("data").getInteger("resultCode") == 1) {
@@ -536,65 +519,6 @@ public class Function {
             return re;
         }
         return null;
-//        Map<String,String> headers=requestHeaderUtil.getHeader();
-//        HttpURLConnection connection = null;
-//        try {
-//            // 创建连接
-//            URL url = new URL("https://hsn.sinograin.com.cn/slyyServlet/service/captcha/checkCaptcha");
-//            connection = (HttpURLConnection) url.openConnection();
-//            connection.setRequestMethod("POST");
-//            connection.setDoOutput(true);
-//            connection.setDoInput(true);
-//            connection.setUseCaches(false);
-//            connection.setInstanceFollowRedirects(true);
-//            connection.setConnectTimeout(10000); // 连接超时时间
-//            connection.setReadTimeout(10000);    // 读取超时时间
-//
-//            // 设置请求头
-//            if (headers != null && !headers.isEmpty()) {
-//                for (Map.Entry<String, String> entry : headers.entrySet()) {
-//                    connection.setRequestProperty(entry.getKey(), entry.getValue());
-//                }
-//            }
-//            String jsonBody=data;
-//            // 写入请求体
-//            if (jsonBody != null && !jsonBody.isEmpty()) {
-//                connection.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
-//                try (OutputStream os = connection.getOutputStream();
-//                     Writer writer = new OutputStreamWriter(os, "UTF-8")) {
-//                    writer.write(jsonBody);
-//                    writer.flush();
-//                }
-//            }
-//
-//            // 获取响应
-//            int responseCode = connection.getResponseCode();
-//            BufferedReader reader;
-//            if (responseCode >= 200 && responseCode < 300) {
-//                reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"));
-//            } else {
-//                reader = new BufferedReader(new InputStreamReader(connection.getErrorStream(), "UTF-8"));
-//            }
-//
-//            StringBuilder response = new StringBuilder();
-//            String line;
-//            while ((line = reader.readLine()) != null) {
-//                response.append(line);
-//            }
-//            reader.close();
-//
-//            // 将响应转换为 JSONObject
-//            JSONObject jsonResponse = JSONObject.parseObject(response.toString());
-//            return jsonResponse;
-//
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//            return (JSONObject) new JSONObject().put("error", "Request failed: " + e.getMessage());
-//        } finally {
-//            if (connection != null) {
-//                connection.disconnect();
-//            }
-//        }
     }
 
     /**

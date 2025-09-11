@@ -53,6 +53,12 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
 
     }
 
+    @Override
+    public UserSmsWebSocket getByPhone(String phone){
+        LambdaQueryWrapper<UserSmsWebSocket> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserSmsWebSocket::getUserPhone, phone);
+        return userSmsWebSocketMapper.selectOne(queryWrapper);
+    }
     /**
      * 新增的私有方法：处理对象中需要转为JSON的字符串字段
      * @param userSmsWebSocket 待处理的对象

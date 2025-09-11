@@ -30,6 +30,7 @@ public class RequestHeaderUtil {
     private String cookie;
     private String mobileDeviceId;
     private String slyyServletJSESSIONID;
+    private String phone;
 
 
      /**
@@ -66,7 +67,7 @@ public class RequestHeaderUtil {
                 } else {
                     // 从 JSONObject 中提取数据并赋值给成员变量
                     this.JSESSIONID = jsonObject.getString("JSESSIONID");
-                    this.slyyServletJSESSIONID = jsonObject.getString("JSESSIONID");
+                    this.slyyServletJSESSIONID = jsonObject.getString("getSlyyServletJSESSIONID");
                     this.ss_ctrl = jsonObject.getString("ss_ctrl");
                     this.xxx = jsonObject.getString("xxx");
                     this.Referer = jsonObject.getString("Referer");
@@ -102,12 +103,9 @@ public class RequestHeaderUtil {
         this.JSESSIONID = "JSESSIONID=" + randomUUID32Upper;
         this.slyyServletJSESSIONID = this.JSESSIONID; // 默认情况下可以设为一样
         this.ss_ctrl = "ss_ctrl=80808198" + RandomUtil.randomString(RandomUtil.BASE_CHAR_NUMBER + "abcdef", 22);
-        this.xxx = " " + randomUUID32Lower + "=WyIz" + RandomUtil.randomNumbers(10) + "Il0";
+        this.xxx = randomUUID32Lower + "=WyIz" + RandomUtil.randomNumbers(10) + "Il0";
         this.mobileDeviceId = "mobileDeviceId=" + randomOpenId;
-        this.Referer = "https://hsn.sinograin.com.cn/mobilexcx/html/main/main.html?hsnParam=" +
-                RandomUtil.randomNumbers(11) + "," +
-                randomUUID32Lower + "," +
-                randomOpenId + "&code=" + RandomUtil.randomString(32) + "&state=main";
+        this.Referer = "https://hsn.sinograin.com.cn/mobilexcx/html/main/main.html?code=" + RandomUtil.randomString(32) + "&state=main";
     }
 
 
@@ -174,6 +172,6 @@ public class RequestHeaderUtil {
     }
     private void setCookie(){
         this.cookie=slyyServletJSESSIONID+";"+xxx+";"+JSESSIONID+";"+ss_ctrl;
-        //this.cookie=JSESSIONID+";"+xxx+";"+ss_ctrl;
+        this.cookie="JSESSIONID=2658AFD959D27A897F1E2A8C36FE66A2; 09f3e6527a1a4b858b7c40a30a35746d=WyI1NDAwNjY1MTMiXQ; JSESSIONID=E7165F70B061F03E9FF2D77F7BB3D8B6; ss_ctrl=8080819934335101993713a63d1386";
     }
 }

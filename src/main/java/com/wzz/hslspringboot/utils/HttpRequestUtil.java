@@ -253,8 +253,8 @@ public class HttpRequestUtil {
 
             // 请求成功 (HTTP状态码 2xx)
             if (response.isOk()) {
-                //headers.setCookie(response);
                 if (headers != null) {
+                    headers.setCookie(response);
                     set(headers);
                 }
                 String body = response.body();

@@ -32,23 +32,28 @@ public class UserSmsWebSocketServiceImpl implements UserSmsWebSocketService {
      */
     @Override
     public void save(UserSmsWebSocket userSmsWebSocket) {
-        UserSmsWebSocket u = ByUserPhoneSelect(userSmsWebSocket.getUserPhone());
-        if (u == null) {
-            if(StrUtil.isBlank(userSmsWebSocket.getUserCookie())){
-                userSmsWebSocket.setUserCookie(null);
+        try {
+            UserSmsWebSocket u = ByUserPhoneSelect(userSmsWebSocket.getUserPhone());
+            if (u == null) {
+                if(StrUtil.isBlank(userSmsWebSocket.getUserCookie())){
+                    userSmsWebSocket.setUserCookie(null);
+                }
+                userSmsWebSocket.setTaskStatus("待处理");
+                processJsonStringField(userSmsWebSocket);
+                userSmsWebSocketMapper.insert(userSmsWebSocket);
+            }else {
+                CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
+                BeanUtil.copyProperties(userSmsWebSocket, u, copyOptions);
+                u.setTaskStatus("待处理");
+                if(StrUtil.isBlank(u.getUserCookie())){
+                    u.setUserCookie(null);
+                }
+                processJsonStringField(u);
+                userSmsWebSocketMapper.updateById(u);
             }
-            userSmsWebSocket.setTaskStatus("待处理");
-            processJsonStringField(userSmsWebSocket);
-            userSmsWebSocketMapper.insert(userSmsWebSocket);
-        }else {
-            CopyOptions copyOptions = CopyOptions.create().setIgnoreNullValue(true);
-            BeanUtil.copyProperties(userSmsWebSocket, u, copyOptions);
-            u.setTaskStatus("待处理");
-            if(StrUtil.isBlank(u.getUserCookie())){
-                u.setUserCookie(null);
-            }
-            processJsonStringField(u);
-            userSmsWebSocketMapper.updateById(u);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
 
     }

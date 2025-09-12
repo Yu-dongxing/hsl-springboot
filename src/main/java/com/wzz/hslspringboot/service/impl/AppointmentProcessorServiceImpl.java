@@ -68,6 +68,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         try {
             RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(user);
             PostPointmentDTO dto = new PostPointmentDTO();
+            requestHeaderUtil.setPhone(user.getUserPhone());
 
             if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto))
                 throw new BusinessException(0,"获取并设置用户信息失败");
@@ -290,7 +291,9 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
         dto.setKssj(firstTimeSlot.getString("kssj"));
         dto.setJssj(firstTimeSlot.getString("jssj"));
         dto.setPzmxnm(firstTimeSlot.getString("yypzmxnm"));
-
+        user.setPzmxnm(firstTimeSlot.getString("yypzmxnm"));
+        headers.setPzmxnm(firstTimeSlot.getString("yypzmxnm"));
+        userSmsWebSocketService.save(user);
         log.info(logs, user.getId(),"用户【{}】获取到预约库点: {}, 日期: {}, 时间: {}-{}", user.getUserName(), dto.getZzmc(), dto.getRq(), dto.getKssj(), dto.getJssj());
         return depotData;
     }
@@ -364,8 +367,8 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
             log.err(logs, user.getId(),"验证码结果：",checkRe.toString());
         } catch (Exception e) {
             // 捕获在 function.checkData 内部可能发生的任何异常，包括我们刚刚分析的NPE
-            userSmsWebSocketService.updateTaskStatus(user.getId(),"执行中","用户【"+ user.getUserName() +"】调用 checkData 接口失败，无法继续短信验证流程。");
-             log.err(logs, user.getId(),"用户【{}】调用 checkData 接口失败，无法继续短信验证流程。", user.getUserName(), e);
+            userSmsWebSocketService.updateTaskStatus(user.getId(),"执行中","用户【"+ user.getUserName() +"】调用 checkData 接口失败，无法继续短信验证流程。错误消息"+e.getMessage());
+             log.err(logs, user.getId(),"用户【{}】调用 checkData 接口失败，无法继续短信验证流程。错误消息{}", user.getUserName(), e.getMessage());
             // 根据业务决定是抛出异常还是返回false
             throw new BusinessException(0, "检查短信验证需求时发生内部错误");
         }
@@ -375,8 +378,8 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
             throw new BusinessException(0, checkRe.getString("msg"));
         }
         // 增加对 checkRe 本身以及关键字段的校验
-        if (checkRe == null || !checkRe.containsKey("needsms")) {
-              log.err(logs, user.getId(),"用户【{}】checkData 接口返回无效，错误", user.getUserName());
+        if (checkRe == null || checkRe.getInteger("status")==500) {
+              log.err(logs, user.getId(),"图片验证码获取失败", user.getUserName());
             throw new BusinessException(0, "checkData执行时发生内部错误");
             // 这里可以根据业务定义一个默认行为，或者直接报错
         }
@@ -508,6 +511,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
             PostPointmentDTO dto = new PostPointmentDTO();
             requestHeaderUtil.setPhone(user.getUserPhone());
             // 预检1 (关键检查): 检查用户信息
+
             if (!fetchAndSetUserInfo(user, requestHeaderUtil, dto)) {
                  log.err(logs, user.getId(),"重新预检失败：用户【{}】无法获取有效的用户信息。", user.getUserName());
                 userSmsWebSocketService.updateTaskStatus(user.getId(), "重新预检失败", "获取用户信息失败或会话无效");

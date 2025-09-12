@@ -67,6 +67,8 @@ public class Function {
      * }
      */
     public JSONObject checkCookieAndGetResponse(UserSmsWebSocket user, RequestHeaderUtil header) {
+        //初始化验证码的cookie
+        insertTpYzm(header);
         // 1. 初始化返回结果，默认为失败状态
         JSONObject response = new JSONObject();
         response.put("success", false);
@@ -116,6 +118,21 @@ public class Function {
 
         response.put("message", errorMessage);
         return response;
+    }
+    //初始化验证码cookie
+    public void insertTpYzm(RequestHeaderUtil header){
+        JSONObject re = api.insertTpYzm(header);
+        UserSmsWebSocket user= userSmsWebSocketService.getByPhone(header.getPhone());
+        user.setNeedCaptcha("0");
+        user.setUuid(null);
+        userSmsWebSocketService.save(user);
+        log.info("<insertTpYzm接口返回数据>" + re.toString());
+        if (!re.getJSONObject("data").getString("sessionid").isEmpty()){
+            header.setSlyyServletJSESSIONID(re.getJSONObject("data").getString("sessionid"));
+            log.info("<insertTpYzm已经更新了cookie>" + re.toString());
+        }else {
+            log.info("<insertTpYzm更新cookie失败>" + re.toString());
+        }
     }
 
     public JSONObject search(UserSmsWebSocket user, RequestHeaderUtil header) {
@@ -207,17 +224,28 @@ public class Function {
     public String getUUID(RequestHeaderUtil requestHeaderUtil) throws IOException, InterruptedException {
         UserSmsWebSocket user= userSmsWebSocketService.getByPhone(requestHeaderUtil.getPhone());
         user.setNeedCaptcha("1");
-        user.setUuid(null);
+        user.setUuid("null");
         userSmsWebSocketService.save(user);
-        log.info("<向数据库发送图形验证码需求::::::>:{}",user.getUserName());
-        for (int i = 0; i < 30; i++) {
-            UserSmsWebSocket users= userSmsWebSocketService.getByPhone(requestHeaderUtil.getPhone());
-            if (users.getUuid()!=null){
-                return users.getUuid();
+        log.info("<向数据库发送图形验证码需求::::::>:{}",requestHeaderUtil.getPhone());
+        try {
+            for (int i = 0; i < 30; i++) {
+                UserSmsWebSocket users= userSmsWebSocketService.getByPhone(requestHeaderUtil.getPhone());
+                if (users.getUuid()!=null&&!users.getUuid().isEmpty()&&users.getUuid().length()>=10){
+                    user.setNeedCaptcha("0");
+                    user.setUuid("null");
+                    userSmsWebSocketService.save(user);
+                    return users.getUuid();
+                }
+                Thread.sleep(1000);
             }
-            Thread.sleep(1000);
+            user.setNeedCaptcha("0");
+            user.setUuid("null");
+            userSmsWebSocketService.save(user);
+            return null;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        return null;
+
     }
 
     /**

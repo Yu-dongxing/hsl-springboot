@@ -235,6 +235,19 @@ public class Modules {
         return util.postForm("/slyyServlet/j_bsp_security_check/mobile", requestHeaderUtil, params);
     }
 
+    /**
+     * 更新 验证码cookie (登录前)
+     * POST /slyyServlet/service/login/insertTpYzm
+     * Postman 接口名: "更新cookie"
+     * @param requestHeaderUtil 请求头工具
+     * @return JSONObject
+     */
+    public JSONObject insertTpYzm(RequestHeaderUtil requestHeaderUtil) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("sessionid", "");
+        params.put("devicetype", "weixin");
+        return util.postForm("/slyyServlet/service/login/insertTpYzm", requestHeaderUtil, params);
+    }
 
 
     /**
@@ -310,7 +323,7 @@ public class Modules {
      */
     public JSONObject getSliderCaptcha(RequestHeaderUtil requestHeaderUtil) {
         // 根据文档，请求体为空对象
-        return util.postJson("/slyyServlet/service/captcha/getCaptcha", requestHeaderUtil, "{}");
+        return util.postJson("/slyyServlet/service/captcha/getCaptcha?yypzmxnm="+requestHeaderUtil.getPzmxnm()+"&phone="+requestHeaderUtil.getPhone(), requestHeaderUtil, "{}");
     }
 
     /**

@@ -118,7 +118,7 @@ public class PostYyTask {
             return;
         }
         if (scheduledTasks.containsKey(user.getId())) {
-            log.trace(logs, user.getId(),"用户ID: {} 的任务已在调度队列中，本次并发处理跳过。");
+            //log.trace(logs, user.getId(),"用户ID: {} 的任务已在调度队列中，本次并发处理跳过。");
             return;
         }
         LocalDateTime appointmentDateTime;
@@ -246,7 +246,7 @@ public class PostYyTask {
                 }
 
                 log.info(logs, user.getId(),"开始提交用户ID: {} 的预约任务，第 {}/{} 次尝试。", user.getId(), attempt, maxRetries);
-                userSmsWebSocketService.updateTaskStatus(user.getId(), STATUS_PROCESSING, String.format("第 %d/%d 次尝试提交...", attempt, maxRetries));
+
                 JSONObject o = new JSONObject();
                 if(attempt==1){
                     o = appointmentProcessorService.submitAppointment(headersToSubmit, dtoToSubmit,user);

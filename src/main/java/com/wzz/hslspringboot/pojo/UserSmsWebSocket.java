@@ -176,5 +176,9 @@ public class UserSmsWebSocket {
      */
     @TableField("uuid")
     private String uuid;
-
+    /**
+     * 用户验证的uuid
+     */
+    @TableField("pzmxnm")
+    private String pzmxnm;
 }

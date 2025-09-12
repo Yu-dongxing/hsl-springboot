@@ -26,10 +26,13 @@ public class CaptchaClientController {
     @PostMapping("/getCaptcha")
     public String getCaptcha(@RequestBody UserSmsDTO upDTO) {
         UserSmsWebSocket u= userSmsWebSocketService.getByPhone(upDTO.getUserPhone());
+
         if(u==null){
             return "未初始化 请等待";
         }
         RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(u);
+        requestHeaderUtil.setPzmxnm(u.getPzmxnm());
+        requestHeaderUtil.setPhone(u.getUserPhone());
         JSONObject rrrr = function.getCaptcha(requestHeaderUtil);
         return rrrr.toString();
     }
@@ -42,7 +45,6 @@ public class CaptchaClientController {
             return "未初始化 请等待";
         }
         RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(u);
-
         JSONObject rrrr = function.checkCaptcha(requestHeaderUtil,upDTO.getData().toString());
         if (rrrr!=null&&!rrrr.getJSONObject("data").getString("uuid").isEmpty()){
             u.setUuid(rrrr.getJSONObject("data").getString("uuid"));

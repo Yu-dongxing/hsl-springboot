@@ -31,7 +31,7 @@ public class RequestHeaderUtil {
     private String mobileDeviceId;
     private String slyyServletJSESSIONID;
     private String phone;
-
+    private String pzmxnm;
 
      /**
      * userSmsWebSocket.getUserCookie():
@@ -172,6 +172,6 @@ public class RequestHeaderUtil {
     }
     private void setCookie(){
         this.cookie=slyyServletJSESSIONID+";"+xxx+";"+JSESSIONID+";"+ss_ctrl;
-        this.cookie="JSESSIONID=2658AFD959D27A897F1E2A8C36FE66A2; 09f3e6527a1a4b858b7c40a30a35746d=WyI1NDAwNjY1MTMiXQ; JSESSIONID=E7165F70B061F03E9FF2D77F7BB3D8B6; ss_ctrl=8080819934335101993713a63d1386";
+        //this.cookie="JSESSIONID=2658AFD959D27A897F1E2A8C36FE66A2; 09f3e6527a1a4b858b7c40a30a35746d=WyI1NDAwNjY1MTMiXQ; JSESSIONID=E7165F70B061F03E9FF2D77F7BB3D8B6; ss_ctrl=8080819934335101993713a63d1386";
     }
 }

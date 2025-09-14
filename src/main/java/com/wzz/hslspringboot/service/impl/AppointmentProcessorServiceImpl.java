@@ -96,6 +96,8 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
                 }
             }
             long startTime = System.currentTimeMillis();
+            if (!fetchRandomCode(user, requestHeaderUtil, dto))
+                throw new BusinessException(0,"获取随机码(uuid)失败");
             if (!handleSmsVerification(user, requestHeaderUtil, dto,true))
                 throw new BusinessException(0,"处理短信验证码失败");
             long endTime = System.currentTimeMillis();
@@ -114,8 +116,7 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
                         user.getUserName());
             }
 
-            if (!fetchRandomCode(user, requestHeaderUtil, dto))
-                throw new BusinessException(0,"获取随机码(uuid)失败");
+
 
             populateRemainingDtoFields(user, dto);
 
@@ -302,21 +303,26 @@ public class AppointmentProcessorServiceImpl implements AppointmentProcessorServ
      * 步骤 4: 解析并设置粮食品种
      */
     private boolean setGrainInfo(UserSmsWebSocket user, PostPointmentDTO dto, JSONObject depotData) {
-        log.info(logs, user.getId(),"步骤 4/{}: 设置粮食品种...", TOTAL_STEPS);
-        JSONArray grainArray = JSON.parseArray(depotData.getString("lspz"));
-        if (grainArray != null && !grainArray.isEmpty()) {
-            for (int i = 0; i < grainArray.size(); i++) {
-                JSONObject grain = grainArray.getJSONObject(i);
-                if (user.getGrainVarieties().equals(grain.getString("name"))) {
-                    dto.setLsmc(grain.getString("name"));
-                    dto.setLsnm(grain.getString("nm"));
-                    log.info(logs, user.getId(),"用户【{}】匹配到粮食品种: {}", user.getUserName(), dto.getLsmc());
-                    return true;
+        try {
+            log.info(logs, user.getId(),"步骤 4/{}: 设置粮食品种...", TOTAL_STEPS);
+            JSONArray grainArray = JSON.parseArray(depotData.getString("lspz"));
+            if (grainArray != null && !grainArray.isEmpty()) {
+                for (int i = 0; i < grainArray.size(); i++) {
+                    JSONObject grain = grainArray.getJSONObject(i);
+                    if (user.getGrainVarieties().equals(grain.getString("name"))) {
+                        dto.setLsmc(grain.getString("name"));
+                        dto.setLsnm(grain.getString("nm"));
+                        log.info(logs, user.getId(),"用户【{}】匹配到粮食品种: {}", user.getUserName(), dto.getLsmc());
+                        return true;
+                    }
                 }
             }
+            log.err(logs, user.getId(),"用户【{}】未在库点粮食品种列表中找到匹配项: {}。可用品种: {}", user.getUserName(), user.getGrainVarieties(), grainArray != null ? grainArray.toJSONString() : "[]");
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-         log.err(logs, user.getId(),"用户【{}】未在库点粮食品种列表中找到匹配项: {}。可用品种: {}", user.getUserName(), user.getGrainVarieties(), grainArray != null ? grainArray.toJSONString() : "[]");
-        return false;
+return false;
     }
 
     /**

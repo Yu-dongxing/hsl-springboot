@@ -45,6 +45,7 @@ public class CaptchaClientController {
             return "未初始化 请等待";
         }
         RequestHeaderUtil requestHeaderUtil = new RequestHeaderUtil(u);
+        requestHeaderUtil.setPhone(u.getUserPhone());
         JSONObject rrrr = function.checkCaptcha(requestHeaderUtil,upDTO.getData().toString());
         if (rrrr!=null&&!rrrr.getJSONObject("data").getString("uuid").isEmpty()){
             u.setUuid(rrrr.getJSONObject("data").getString("uuid"));
